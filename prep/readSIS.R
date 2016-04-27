@@ -25,21 +25,26 @@
   redact <- redact[, -( grep("_st$" , colnames(redact),perl = TRUE) ) ]
   
   # Remove other unneeded fields
-  redact <-
-  redact %>% 
-    select(-user_id,-sis_modified_dt,
-           -sis_cl_ssn,-sis_cl_age,
-           -sis_int_position_cd,-sis_int_city,
-           -sis_int_zip,-sis_db_create_dt,-sis_other_info,
-           -SisStatusChgDte,-LstModUser,              
-           -LstModDate,-ReminderDate,
-           -SixtyReminderDate,-ThirtyReminderDate,
-           -FinalBudget,-LocationId,
-           -SitChanged,-FormConfigId,
-           -sis_res1_agency,-sis_res2_agency,-sis_res3_agency,-sis_res4_agency,-sis_res5_agency,
-           -sis_res6_agency,-sis_res7_agency,-sis_res8_agency,-sis_res9_agency,-sis_res10_agency,
-           -sis_archived,-Deleted,-Upload_Info,-sis_cl_county,-Training,-Attachment,
-           -Recipient_ContactID,-ReviewStatus)
+# Remove other unneeded fields
+redact_candidates<-c("user_id", "sis_modified_dt", 
+                    "sis_cl_ssn", "sis_cl_age", 
+                    "sis_int_position_cd", "sis_int_city", 
+                    "sis_int_zip", "sis_db_create_dt", "sis_other_info", 
+                    "SisStatusChgDte", "LstModUser",               
+                    "LstModDate", "ReminderDate", 
+                    "SixtyReminderDate", "ThirtyReminderDate", 
+                    "FinalBudget", "LocationId", 
+                    "SitChanged", "FormConfigId", 
+                    "sis_res1_agency", "sis_res2_agency", "sis_res3_agency", "sis_res4_agency", "sis_res5_agency", 
+                    "sis_res6_agency", "sis_res7_agency", "sis_res8_agency", "sis_res9_agency", "sis_res10_agency", 
+                    "sis_archived", "Deleted", "Upload_Info", "sis_cl_county", "Training", "Attachment", 
+                    "Recipient_ContactID", "ReviewStatus")
+
+for(i in 1:length(redact_candidates))  # for each row
+{
+if(redact_candidates[i] %in% names(redact)) 
+  {  redact <- redact[, -( grep(redact_candidates[i] , colnames(redact),perl = TRUE) ) ]  } 
+}
 
 # Filter Status == Completed ?
   sis <- redact %>% tbl_df %>% filter(Status %in% c("Completed","Completed-Locked"))
