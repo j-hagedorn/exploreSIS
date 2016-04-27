@@ -83,7 +83,7 @@ if(redact_candidates[i] %in% names(redact))
     mutate(start = lubridate::mdy_hms(InterviewStartTime),
            end = lubridate::mdy_hms(InterviewEndTime),
            duration = as.numeric(difftime(end, start, units = "mins")),
-           DaysSince = as.POSIXct(today()) - sis_completed_dt,
+           DaysSince = as.POSIXct(today()) - as.POSIXct(sis_completed_dt),
            ClientAge = round((sis_completed_dt - sis_cl_dob_dt)/365.242, digits = 1))  # Calculate age at assessment
  
 # Calculate max estimated hours per area
@@ -205,5 +205,5 @@ if(redact_candidates[i] %in% names(redact))
     
 # Get rid on the non-essentials
     
-    rm(redact); rm(current)
+    rm(redact)
     
