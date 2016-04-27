@@ -1,7 +1,5 @@
 ##installing packages if not already there
- install.packages("dplyr")
- install.packages("car")
- install.packages("lubridate")
+##never mind - installing packages makes it run weird.  i guess people will know what to do
  
 ## readSIS.R ##
   library(dplyr)
