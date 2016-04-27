@@ -1,5 +1,7 @@
+##installing packages if not already there
+##never mind - installing packages makes it run weird.  i guess people will know what to do
+ 
 ## readSIS.R ##
-
   library(dplyr)
   library(car)
 
@@ -25,21 +27,26 @@
   redact <- redact[, -( grep("_st$" , colnames(redact),perl = TRUE) ) ]
   
   # Remove other unneeded fields
-  redact <-
-  redact %>% 
-    select(-user_id,-sis_modified_dt,
-           -sis_cl_ssn,-sis_cl_age,
-           -sis_int_position_cd,-sis_int_city,
-           -sis_int_zip,-sis_db_create_dt,-sis_other_info,
-           -SisStatusChgDte,-LstModUser,              
-           -LstModDate,-ReminderDate,
-           -SixtyReminderDate,-ThirtyReminderDate,
-           -FinalBudget,-LocationId,
-           -SitChanged,-FormConfigId,
-           -sis_res1_agency,-sis_res2_agency,-sis_res3_agency,-sis_res4_agency,-sis_res5_agency,
-           -sis_res6_agency,-sis_res7_agency,-sis_res8_agency,-sis_res9_agency,-sis_res10_agency,
-           -sis_archived,-Deleted,-Upload_Info,-sis_cl_county,-Training,-Attachment,
-           -Recipient_ContactID,-ReviewStatus)
+# Remove other unneeded fields
+redact_candidates<-c("user_id", "sis_modified_dt", 
+                    "sis_cl_ssn", "sis_cl_age", 
+                    "sis_int_position_cd", "sis_int_city", 
+                    "sis_int_zip", "sis_db_create_dt", "sis_other_info", 
+                    "SisStatusChgDte", "LstModUser",               
+                    "LstModDate", "ReminderDate", 
+                    "SixtyReminderDate", "ThirtyReminderDate", 
+                    "FinalBudget", "LocationId", 
+                    "SitChanged", "FormConfigId", 
+                    "sis_res1_agency", "sis_res2_agency", "sis_res3_agency", "sis_res4_agency", "sis_res5_agency", 
+                    "sis_res6_agency", "sis_res7_agency", "sis_res8_agency", "sis_res9_agency", "sis_res10_agency", 
+                    "sis_archived", "Deleted", "Upload_Info", "sis_cl_county", "Training", "Attachment", 
+                    "Recipient_ContactID", "ReviewStatus")
+
+for(i in 1:length(redact_candidates))  # for each row
+{
+if(redact_candidates[i] %in% names(redact)) 
+  {  redact <- redact[, -( grep(redact_candidates[i] , colnames(redact),perl = TRUE) ) ]  } 
+}
 
 # Filter Status == Completed ?
   sis <- redact %>% tbl_df %>% filter(Status %in% c("Completed","Completed-Locked"))
@@ -74,7 +81,7 @@
     mutate(start = lubridate::mdy_hms(InterviewStartTime),
            end = lubridate::mdy_hms(InterviewEndTime),
            duration = as.numeric(difftime(end, start, units = "mins")),
-           DaysSince = as.POSIXct(today()) - sis_completed_dt,
+           DaysSince = as.POSIXct(today()) - as.POSIXct(sis_completed_dt),
            ClientAge = round((sis_completed_dt - sis_cl_dob_dt)/365.242, digits = 1))  # Calculate age at assessment
  
 # Calculate max estimated hours per area
@@ -196,5 +203,5 @@
     
 # Get rid on the non-essentials
     
-    rm(redact); rm(current)
+    rm(redact)
     
