@@ -776,58 +776,6 @@ dashboardPage(
       tabItem(
         tabName = "med-beh",
         fluidRow(
-          box(
-            title = "Filters", 
-            status = "warning",
-            collapsible = TRUE, 
-            collapsed = TRUE, 
-            tabBox(
-              width = NULL,
-              tabPanel(
-                "Living situation(s):",
-                selectInput(
-                  "living",
-                  label = NULL,
-                  choices = c(levels(unique(scrub_sis$LivingType)),"Not provided"), 
-                  selected = c(levels(unique(scrub_sis$LivingType)),"Not provided"), 
-                  multiple = TRUE
-                )
-              ),
-              tabPanel(
-                "About",
-                h4("Living situation(s)"),
-                p(
-                  "The options for this filter are groupings of the ",
-                  em("Living Situation"), " field, combined as follows:",
-                  br(),
-                  strong("Facility:"), "Includes the following living situations:",
-                  em(
-                    "Adult Foster Care home certified, Agency-provided 
-                    residential home with 4 to 6 people, Agency provided 
-                    residential home with 10 or more people, General residential 
-                    AFC NOT certified, Institutional setting, 
-                    Prison/jail/juvenile detention center, Specialized 
-                    residential AFC"
-                  ),
-                  br(),
-                  strong("Family:"), "Includes the following living situations:",
-                  em(
-                    "Foster family home, Living with family, Private residence 
-                    with family members"
-                  ),
-                  br(),
-                  strong("Independent:"), "Includes the following living situations:",
-                  em(
-                    "Homeless, Living independently with supports, Private 
-                    residence alone or with spouse or non-relatives, Private 
-                    residence owned by the PIHP/CMHSP or provider"
-                  )
-                )
-              )
-            )
-          )
-        ),
-        fluidRow(
           column(
             width = 6,
             box(
@@ -1118,7 +1066,14 @@ dashboardPage(
                   ),
                   h4("Limitations"),
                   p(
-                    textOutput("ipos_caveat")
+                    "Since the SIS evaluates the intensity of support needed for 
+                    individuals to lead independent lives, it may require some 
+                    interpretation to apply its findings to a non-independent 
+                    setting.  In such instances, some level of family, CLS 
+                    and/or PC supports would be available on a day-to-day basis.  
+                    The structured setting provided by a family home or facility 
+                    may therefore already be meeting some of the frequency and 
+                    daily support time needed to support certain areas."
                   ),
                   p(
                     "The IDs for individual profiles which are shown in the 
@@ -1402,21 +1357,6 @@ dashboardPage(
                     max = 10,
                     width = '100px'
                   ),
-                  h4("Living Situations"),
-                  p(
-                    "You may also want to look at individuals who live in a 
-                    particular type of setting, since these settings are often 
-                    related to the the level of needs that an individual has.  
-                    Select a living situation below to filter the individuals 
-                    displayed in the patterns of need:"
-                  ),
-                  selectInput(
-                    "living_heat",
-                    label = NULL,
-                    choices = levels(unique(scrub_sis$LivingType)), 
-                    selected = levels(unique(scrub_sis$LivingType)), 
-                    multiple = TRUE
-                  ),
                   p(
                     "Then, click on the ", em("Heatmap"), " tab to explore 
                     the groups in your population."
@@ -1659,13 +1599,6 @@ dashboardPage(
                     include:", 
                     em("Change in situation, First SIS, or Regularly scheduled 
                        assessment")
-                  ),
-                  p(
-                    strong("No Living Situation"),
-                    "counts the number of instances in which no living situation 
-                    was identified for the individual being assessed, thereby 
-                    making it impossible to group people into 
-                    residential/family/independent groups."
                   ),
                   p(
                     strong("No Intrvw Setting"),
