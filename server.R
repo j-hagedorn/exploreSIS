@@ -104,9 +104,9 @@
       sec1Input <- reactive({
         
         sisInput() %>%
-          select(fake_id, agency, sis_date, # LivingType, 
+          select(fake_id, agency, sis_date,  
                  starts_with("Q1")) %>%
-          select(fake_id, agency, sis_date, # LivingType, 
+          select(fake_id, agency, sis_date,  
                  ends_with("support")) %>%
           gather(item,score,Q1A1_ExMedSupport:Q1B13_ExBehSupport) %>%
           mutate(item = gsub("ExMedSupport", "", item),
@@ -116,7 +116,7 @@
                                      1 = 'Some Support Needed';
                                      2 = 'Extensive Support Needed'")) %>%
           left_join(needs, by = "item") %>%
-          select(fake_id,agency,sis_date, #LivingType,
+          select(fake_id,agency,sis_date, 
                  section,section_desc,item,item_desc,qol,
                  need_svc,score,
                  refer_ot,refer_nurs,refer_sp,refer_pt,refer_diet,
@@ -1242,8 +1242,6 @@
       
       output$conditions <- renderPlotly({
         
-        #liv_filt <- recode(input$living, "'Not provided' = NA")
-        
         radio <- if (input$radio_mb == "Both") {c("Medical Supports","Behavioral Supports")
         } else if (input$radio_mb == "Medical") {c("Medical Supports")
         } else if (input$radio_mb == "Behavioral") {c("Behavioral Supports")
@@ -1254,7 +1252,6 @@
             sec1Input() %>%
             filter(score > 0
                    & section_desc %in% radio
-                   # & LivingType %in% liv_filt
                    ) %>%
             group_by(item_desc,level) %>%
             summarize(n = n()) %>%
@@ -1268,7 +1265,6 @@
             filter(agency == input$agency
                    & score > 0
                    & section_desc %in% radio
-                   # & LivingType %in% liv_filt
                    ) %>%
             group_by(item_desc,level) %>%
             summarize(n = n()) %>%
@@ -1292,19 +1288,14 @@
 
       output$hist_mb <- renderPlotly({
         
-        # liv_filt <- recode(input$living, "'Not provided' = NA")
-        
         if ( input$agency == "All" ) {
           scrub_sis_filt <- 
-            sisInput() # %>% 
-            #filter(LivingType %in% liv_filt)
+            sisInput()  
           notescope <- "across all CMHSPs"
         } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
           scrub_sis_filt <- 
             sisInput() %>% 
-            filter(agency == input$agency 
-                   #& LivingType %in% liv_filt
-                   )
+            filter(agency == input$agency)
           notescope <- paste0("at ",input$agency)
         } else
           print(paste0("Error.  Unrecognized input."))
@@ -1426,59 +1417,6 @@
           plotly::layout(yaxis = list(title = "Interviewers",
                                       showticklabels = F))
           
-      })
-      
-      output$ipos_caveat <- renderText({
-        
-        liv <-
-          scrub_sis %>%
-          group_by(fake_id) %>%
-          filter(as.Date(sis_date) == max(as.Date(sis_date))) %>% # Most recent per ID
-          filter(fake_id == input$id_drop) %>%
-          ungroup() %>%
-          mutate(LivingType = as.character(LivingType),
-                 LivingSituation = as.character(LivingSituation)) %>%
-          select(LivingType,LivingSituation) %>%
-          droplevels() %>%
-          as.list()
-        
-        if (liv$LivingType == "Facility") {
-          paste0("At the time when the SIS assessment was administered, this 
-                 person was living in a facility setting, specifically: ", 
-                 tolower(liv$LivingSituation), ".  ",
-                 "Since the SIS evaluates the intensity of support needed for 
-                 individuals to lead independent lives, it may require some 
-                 interpretation to apply its findings to a non-independent 
-                 setting.  ",
-                 "This person's actual support needs may vary from those 
-                 indicated on the SIS, because some level of CLS and PC services 
-                 can be assumed as available on a day-to-day basis.  
-                 The structured setting provided by the facility may therefore 
-                 decrease the frequency and daily support time needed to 
-                 support certain needs.")
-        } else if (liv$LivingType == "Family") {
-          paste0("At the time when the SIS assessment was administered, this 
-                 person was living in a family setting, specifically: ", 
-                 tolower(liv$LivingSituation), ".  ",
-                 "Since the SIS evaluates the intensity of support needed for 
-                 individuals to lead independent lives, it may require some 
-                 interpretation to apply its findings to a non-independent 
-                 setting.  ",
-                 "This person's actual support needs may vary from those 
-                 indicated on the SIS, because the setting provided by the 
-                 family home may decrease the frequency and daily support time 
-                 needed to support certain needs.  Additionally, some level of 
-                 family support may be more readily available to supplement 
-                 paid supports.")
-        } else if (liv$LivingType == "Independent") {
-          paste0("At the time when the SIS assessment was administered, this 
-                 person was living in an independent setting, specifically: ", 
-                 tolower(liv$LivingSituation), ".  ",
-                 "Since the SIS evaluates the intensity of support needed for 
-                 individuals to lead independent lives, its findings are the 
-                 most directly applicable to this setting.  ")
-        } else print(paste0("Error.  Unrecognized input."))
-        
       })
       
       output$ipos_tofor <- renderDataTable({
@@ -1874,8 +1812,7 @@
             group_by(fake_id) %>% 
             filter(as.Date(sis_date) == max(as.Date(sis_date))) %>% # Most recent per ID
             ungroup() %>% droplevels() %>%
-            select(#LivingType,
-              contains("scr")) %>%
+            select(contains("scr")) %>%
             rename(medical = scr_1A_raw_total,
                    behavior = scr_1B_raw_total,
                    home = scr_2A_std,
@@ -1888,13 +1825,8 @@
             select(medical,behavior,home,community,safety,
                    learning,employment,social,advocacy)  %>%
             filter(is.na(medical) == F) %>%
-            mutate_each(funs(as.numeric)#,-LivingType
-            ) %>%
-            mutate_each(funs(scale)#,-LivingType
-            ) # %>%
-          # Filter after scaling
-          #filter(LivingType %in% input$living_heat) %>%
-          #select(-LivingType)
+            mutate_each(funs(as.numeric)) %>%
+            mutate_each(funs(scale)) 
         
         } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
         
@@ -1905,8 +1837,7 @@
             group_by(fake_id) %>% 
             filter(as.Date(sis_date) == max(as.Date(sis_date))) %>% # Most recent per ID
             ungroup() %>% droplevels() %>%
-            select(#LivingType,
-              contains("scr")) %>%
+            select(contains("scr")) %>%
             rename(medical = scr_1A_raw_total,
                    behavior = scr_1B_raw_total,
                    home = scr_2A_std,
@@ -1919,13 +1850,8 @@
             select(medical,behavior,home,community,safety,
                    learning,employment,social,advocacy)  %>%
             filter(is.na(medical) == F) %>%
-            mutate_each(funs(as.numeric)#,-LivingType
-            ) %>%
-            mutate_each(funs(scale)#,-LivingType
-            ) # %>%
-          # Filter after scaling
-          #filter(LivingType %in% input$living_heat) %>%
-          #select(-LivingType)
+            mutate_each(funs(as.numeric)) %>%
+            mutate_each(funs(scale)) 
           
         } else
           print(paste0("Error.  Unrecognized input.")) 
@@ -1996,7 +1922,6 @@
                       miss_start = sum(as.numeric(hour(start) %in% c(0, NA))),
                       miss_end = sum(as.numeric(hour(end) %in% c(0, NA))),
                       miss_reason = sum(is.na(sis_why)),
-                      #miss_liv = sum(is.na(LivingSituation)),
                       #miss_setting = sum(is.na(InterviewSetting)),
                       #miss_supports = sum(is.na(sis_sup1_reln)),
                       #miss_respond = sum(is.na(sis_res1_reln_typ_cd)),
@@ -2009,7 +1934,7 @@
                     colnames = c('Interviewer',
                                  'Unmatched Mcaid IDs','Missing Start Time',
                                  'Missing End Time','Missing Reason',
-                                 #'No Living Situation','No Intrvw Setting',
+                                 #'No Intrvw Setting',
                                  #'Missing Supports Info',
                                  #'Missing Respondents',
                                  'State other than MI',
@@ -2039,11 +1964,6 @@
                       backgroundSize = '100% 90%',
                       backgroundRepeat = 'no-repeat',
                       backgroundPosition = 'center') %>%
-          # formatStyle('miss_liv',
-          #             background = styleColorBar(mia$miss_liv, 'steelblue'),
-          #             backgroundSize = '100% 90%',
-          #             backgroundRepeat = 'no-repeat',
-          #             backgroundPosition = 'center') %>%
           # formatStyle('miss_setting',
           #             background = styleColorBar(mia$miss_setting, 'steelblue'),
           #             backgroundSize = '100% 90%',
