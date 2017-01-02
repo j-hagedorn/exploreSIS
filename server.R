@@ -209,6 +209,46 @@
         
       })
       
+      clusterInput <- reactive({
+        
+        #  Make dataframe for use in cluster analyses
+        
+        if ( input$agency == "All" ) {
+          df <- sisInput() 
+        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
+          df <- sisInput() %>% filter(agency == input$agency) 
+        } else print(paste0("Error.  Unrecognized input.")) 
+        
+        df %>%
+          filter(is.na(fake_id) == FALSE) %>% # Remove empty randomized IDs
+          # Include only most recent assessment data per ID
+          group_by(fake_id) %>% 
+          filter(as.Date(sis_date) == max(as.Date(sis_date))) %>% 
+          ungroup() %>% droplevels() %>%
+          select(contains("scr")) %>%
+          rename(medical = scr_1A_raw_total,
+                 behavior = scr_1B_raw_total,
+                 home = scr_2A_std,
+                 community = scr_2B_std,
+                 safety = scr_2E_std,
+                 learning = scr_2C_std,
+                 employment = scr_2D_std,
+                 social = scr_2F_std,
+                 advocacy = scr_3_raw_total) %>%
+          select(medical,behavior,home,community,safety,
+                 learning,employment,social,advocacy)  %>%
+          filter(is.na(medical) == F) %>%
+          mutate_each(funs( as.numeric(scale(.) )))
+        
+      })
+      
+      cluster_km <- reactive({
+        
+        clusterInput() %>% 
+          kmeans(centers = input$need_rows)
+        
+      })
+      
       ## REACTIVE UI ELEMENTS ## 
       
       output$valid_date <- renderText({
@@ -337,6 +377,27 @@
                     label = "Select an individual:",
                     choices = levels(unique(as.factor(sisInput$fake_id)))
                     )
+      })
+      
+      output$k_vars <- renderUI({
+        
+        # Create multiple dropdowns, each displaying a different colname
+        
+        tagList(
+          selectInput("kmPlot_x", "X-axis: ",
+                      choices = names(clusterInput()),
+                      selected = names(clusterInput())[1]),
+          selectInput("kmPlot_y", "Y-axis: ",
+                      choices = names(clusterInput()),
+                      selected = names(clusterInput())[2]),
+          selectInput("kmPlot_z", "Z-axis: ",
+                      choices = names(clusterInput()),
+                      selected = names(clusterInput())[3]),
+          selectInput("kmPlot_size", "Size: ",
+                      choices = names(clusterInput()),
+                      selected = names(clusterInput())[4])
+        )
+        
       })
       
       ## VISUALIZATIONS ##
@@ -1733,7 +1794,7 @@
         visNetwork(nodes, edges, height = "700px", width = "100%") %>% 
           visOptions(highlightNearest = list(enabled = T, degree = 1, hover = F)) %>%
           visEdges(color = list(color = "#E0EEEE", highlight = "#E1AF00")) %>%
-          visPhysics(stabilization = FALSE) %>%
+          visPhysics(maxVelocity = 5,stabilization = FALSE) %>%
           visLayout(randomSeed = 123) %>%
           visLegend(width = 0.1, position = "right")
         
@@ -1802,65 +1863,35 @@
         
       })
       
+      output$need_scree <- renderPlotly({
+        
+        scree <- function(df) {
+          wss <- (nrow(df)-1)*sum(apply(df,2,var))
+          for (i in 2:15) wss[i] <- sum(kmeans(df,centers=i)$withinss)
+          wss %<>% as.data.frame() 
+          names(wss)[1] <- "wss"
+          wss %<>% mutate(n_clust = row_number())
+          return(wss)
+        }
+
+        clusterInput() %>%
+          scree() %>%
+          plot_ly(x = ~n_clust, y = ~wss, height = 200) %>%
+          add_lines(alpha = 0.5) %>%
+          add_markers(name = "Clusters",
+                      hoverinfo = "x") %>%
+          layout(xaxis = list(title = "Number of clusters"),
+                 yaxis = list(title = "Within groups <br>sum of squares")) %>%
+          hide_legend()
+        
+      })
+      
       output$need_heat <- renderD3heatmap({
-        
-        if ( input$agency == "All" ) {
-          
-          heat <- 
-            sisInput() %>%
-            filter(is.na(fake_id) == FALSE) %>% # Remove empty randomized IDs
-            group_by(fake_id) %>% 
-            filter(as.Date(sis_date) == max(as.Date(sis_date))) %>% # Most recent per ID
-            ungroup() %>% droplevels() %>%
-            select(contains("scr")) %>%
-            rename(medical = scr_1A_raw_total,
-                   behavior = scr_1B_raw_total,
-                   home = scr_2A_std,
-                   community = scr_2B_std,
-                   safety = scr_2E_std,
-                   learning = scr_2C_std,
-                   employment = scr_2D_std,
-                   social = scr_2F_std,
-                   advocacy = scr_3_raw_total) %>%
-            select(medical,behavior,home,community,safety,
-                   learning,employment,social,advocacy)  %>%
-            filter(is.na(medical) == F) %>%
-            mutate_each(funs(as.numeric)) %>%
-            mutate_each(funs(scale)) 
-        
-        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
-        
-          heat <- 
-            sisInput() %>%
-            filter(agency == input$agency) %>%
-            filter(is.na(fake_id) == FALSE) %>% # Remove empty randomized IDs
-            group_by(fake_id) %>% 
-            filter(as.Date(sis_date) == max(as.Date(sis_date))) %>% # Most recent per ID
-            ungroup() %>% droplevels() %>%
-            select(contains("scr")) %>%
-            rename(medical = scr_1A_raw_total,
-                   behavior = scr_1B_raw_total,
-                   home = scr_2A_std,
-                   community = scr_2B_std,
-                   safety = scr_2E_std,
-                   learning = scr_2C_std,
-                   employment = scr_2D_std,
-                   social = scr_2F_std,
-                   advocacy = scr_3_raw_total) %>%
-            select(medical,behavior,home,community,safety,
-                   learning,employment,social,advocacy)  %>%
-            filter(is.na(medical) == F) %>%
-            mutate_each(funs(as.numeric)) %>%
-            mutate_each(funs(scale)) 
-          
-        } else
-          print(paste0("Error.  Unrecognized input.")) 
-           
-        
+
         withProgress(message = 'Creating heatmap...',
                      detail = 'Clustering can take awhile...',
                      value = 0.1, 
-                     {d3heatmap(heat, 
+                     {d3heatmap(clusterInput(), 
                                 colors = "Blues",
                                 dendrogram = "row",
                                 k_row = input$need_rows, 
@@ -1871,7 +1902,112 @@
         
       })
       
-      output$dt_datqual <- renderDataTable({
+      output$need_grp_dt <- DT::renderDataTable({
+        
+        if (input$dt_clust_type == "k-means clusters") {
+          
+          tidy_grp <- 
+            cluster_km() %>% 
+            tidy() %>%
+            select(cluster,size,everything(),-withinss) %>%
+            mutate_each(funs = funs(round(.,digits = 3)),
+                        starts_with("x"))
+          
+          # Define color interval breaks
+          brks <- tidy_grp %>% select(starts_with("x")) %>% 
+            quantile(probs = seq(.05, .95, .05), na.rm = TRUE)
+          
+          clrs <- round(seq(255, 40, length.out = length(brks) + 1), 0) %>%
+          {paste0("rgb(255,", ., ",", ., ")")}  
+          
+          # Select var names to apply color gradient
+          var_names <- tidy_grp %>% select(starts_with("x")) %>% colnames()
+          
+        } else if (input$dt_clust_type == "hierarchical clusters") {
+          
+          # Use default dist and hclust methodds to match d3heatmap output
+          distances <- dist(clusterInput(), method = "euclidean")
+          hc <- hclust(distances, method = "complete")
+          cluster <- cutree(hc, k = input$need_rows)
+          
+          n_obs <-
+            clusterInput() %>%
+            cbind(cluster) %>%
+            mutate(cluster = as.factor(cluster)) %>%
+            group_by(cluster) %>%
+            summarize(size = n()) 
+          
+          tidy_grp <-
+            clusterInput() %>%
+            cbind(cluster) %>%
+            mutate(cluster = as.factor(cluster)) %>%
+            group_by(cluster) %>%
+            summarize_at(vars(medical:advocacy), mean) %>%
+            left_join(n_obs, by = "cluster") %>%
+            select(cluster,size,everything()) %>%
+            mutate_each(funs = funs(round(.,digits = 3)),
+                        medical:advocacy)
+          
+          # Define color interval breaks
+          brks <- tidy_grp %>% select(medical:advocacy) %>% as.matrix() %>%
+            quantile(probs = seq(.05, .95, .05), na.rm = TRUE)
+          
+          clrs <- round(seq(255, 40, length.out = length(brks) + 1), 0) %>%
+          {paste0("rgb(255,", ., ",", ., ")")}  
+          
+          # Select var names to apply color gradient
+          var_names <- tidy_grp %>% select(medical:advocacy) %>% colnames()
+          
+        } else print(paste0("Error.  Unrecognized input."))
+        
+        
+        # Make datatable
+        tidy_grp %>%
+          datatable(rownames = FALSE,
+                    colnames = c('Cluster','People',colnames(cluster_km()$centers)),
+                    extensions = c('Responsive','Buttons'),
+                    options = list(dom = 't', buttons = c('colvis'))) %>%
+          # Doesn't currently match levels of palette applied to need_km output
+          # formatStyle('cluster', 
+          #             backgroundColor = styleEqual(unique(tidy_k$cluster),
+          #                                          soft_12[1:length(cluster_km()$centers[,1])])) %>%
+          formatStyle(var_names, backgroundColor = styleInterval(brks, clrs)) %>%
+          formatStyle('size',
+                      background = styleColorBar(tidy_grp$size, 'gray'),
+                      backgroundSize = '100% 90%',
+                      backgroundRepeat = 'no-repeat',
+                      backgroundPosition = 'center')
+        
+      })
+      
+      output$need_km <- renderPlotly({
+        
+        df <-
+        cluster_km() %>% 
+          augment(clusterInput()) 
+        
+        # Rename cols based on inputs
+        df$xvar <- df[ ,which( colnames(df) == input$kmPlot_x )]
+        df$yvar <- df[ ,which( colnames(df) == input$kmPlot_y )]
+        df$zvar <- df[ ,which( colnames(df) == input$kmPlot_z )]
+        df$sizevar <- df[ ,which( colnames(df) == input$kmPlot_size )]
+        
+        df %>%
+          group_by(.cluster) %>%
+          plot_ly(x = ~xvar, 
+                  y = ~yvar, 
+                  z = ~zvar, 
+                  color = ~.cluster,
+                  colors = soft_12) %>%
+          add_markers(size = ~sizevar, 
+                      sizes = c(10, 500)) %>%
+          layout(scene = list(xaxis = list(title = input$kmPlot_x), 
+                              yaxis = list(title = input$kmPlot_y), 
+                              zaxis = list(title = input$kmPlot_z)))
+        
+      })
+      
+      output$dt_datqual <- DT::renderDataTable({
         
         is_current <- if(input$current == "Current assessors") {
           c(TRUE)

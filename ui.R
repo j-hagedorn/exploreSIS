@@ -12,7 +12,7 @@ dashboardPage(
         icon = icon("line-chart")
       ),
       menuItem(
-        "Population Needs", 
+        "Population Summary", 
         tabName = "support", 
         icon = icon("life-ring")
       ),
@@ -20,6 +20,11 @@ dashboardPage(
         "Medical/Behavioral", 
         tabName = "med-beh", 
         icon = icon("medkit")
+      ),
+      menuItem(
+        "Patterns of Need", 
+        tabName = "pattern", 
+        icon = icon("cubes")
       ),
       menuItem(
         "Compare Raters", 
@@ -910,6 +915,286 @@ dashboardPage(
         )
       ),
       tabItem(
+        tabName = "pattern",
+        column(
+          width = 4,
+          box(
+            title = "Defining Patterns", 
+            status = "warning",
+            collapsible = TRUE, 
+            width = NULL,
+            tabBox(
+              width = NULL,
+              tabPanel(
+                "What groups?",
+                p(
+                  "To design programs that meet people where they are, it 
+                  helps to understand patterns in the types of needs that 
+                  people have in various areas of their lives. You can 
+                  check out the ", em("Scenarios"), " tab for examples of 
+                  situations where this may be useful."  
+                ),
+                h4("How many groups of people?"),
+                p(
+                  "Depending on your particular situation, you may want to 
+                  focus on greater or fewer groups of clients, each of 
+                  whom is depicted as a row in the heatmap.  You can 
+                  select the number of groups here: "
+                ),
+                numericInput(
+                  inputId = "need_rows",
+                  label = NULL, 
+                  value = 5,
+                  min = 1, 
+                  max = 10,
+                  width = '100px'
+                ),
+                p(
+                  "Then, view the summary table and expand the other tabs to explore 
+                  the groups in your population..."
+                ),
+                box(
+                  title = "Picking a number", 
+                  color = "black",
+                  collapsible = TRUE, 
+                  collapsed = T,
+                  width = NULL,
+                  p(
+                    "To find the maximum number of meaningful clusters, don't go 
+                    farther than the elbow of the chart below..."
+                  ),
+                  plotlyOutput("need_scree")
+                )
+              ),
+              tabPanel(
+                "Why group?",
+                p(
+                  "The following scenarios provide examples of instances where 
+                  it may be helpful to define patterns of need in the population 
+                  being served:"
+                ),
+                box(
+                  title = "Build Specialized Teams", 
+                  color = "black",
+                  collapsible = TRUE, collapsed = T, width = NULL,
+                  p(
+                    "A supervisor of a supports coordination team for persons with 
+                    I/DD would like to start a pilot program providing intensive, 
+                    multi-disciplinary team based integrated care for quadrant 
+                    four consumers (persons with high behavioral health and 
+                    physical health needs as defined in the Four Quadrant Clinical 
+                    Integration Model). She could use the heat map to identify a 
+                    group of patients for whom this intervention could be offered.",
+                    em(
+                      "(In this instance, if she were trying to assign people to 
+                      3 supports coordination programs, she may want to highlight 
+                      3 groups)"
+                    )
+                  )
+                ),
+                box(
+                  title = "Implement Best Practice Guidelines", 
+                  color = "black",
+                  collapsible = TRUE, collapsed = T, width = NULL,
+                  p(
+                    "  A clinical director would like to identify clinical 
+                    guidelines to assist clinicians in recommending best 
+                    practices based on peoples needs. A first step could be 
+                    taking the domains listed on the heat map and 
+                    identifying any evidence based or best practice 
+                    interventions that meet that particular need for people 
+                    with I/DD."
+                  )
+                ),
+                box(
+                  title = "Identify Training Needs", 
+                  color = "black",
+                  collapsible = TRUE, collapsed = T, width = NULL,
+                  p(
+                    "A clinical director would like to know what types of 
+                    trainings would benefit the clinicians serving persons 
+                    with I/DD at his agency. He could look at the heat map 
+                    and determine which three areas represent the highest 
+                    need within the entire I/DD population served."
+                  )
+                )
+              ),
+              tabPanel(
+                "How?",
+                p(
+                  "Clustering is an exploratory technique.  It won't give you 
+                  any conclusive results, it often generates insights and 
+                  additional questions for analysis.  Here, we provide two different 
+                  methods of clustering, ", em("k-means"), " and ", 
+                  em("hierarchical clustering.")
+                ),
+                box(
+                  title = "K-means clustering", 
+                  color = "black",
+                  collapsible = TRUE, collapsed = T, width = NULL,
+                  p(
+                    "This algorithm uses the following procedure to classify a 
+                    given dataset into a certain number (k) of clusters:",
+                    tags$ul(
+                      tags$li("define k centroids, as far away from each other as possible"),
+                      tags$li("take each point in the data and associate it to the nearest centroid"),
+                      tags$li("re-calculate new centroids at the center of the cluster resulting from the previous step"),
+                      tags$li("repeat until the centroids do not move any more")
+                    ),
+                    "The algorithm is faster and easier to use on larger datasets,
+                    though it requires users to identify a number of clusters in 
+                    order to be run."
+                  ),
+                  p(
+                    "If you want to walk through a visual explanation of how k-means 
+                    algorithms work, you can check out ",
+                    a(
+                      href = "http://stanford.edu/class/ee103/visualizations/kmeans/kmeans.html",
+                      "this site from Stanford."
+                    )
+                  )
+                ),
+                box(
+                  title = "Hierarchical clustering", 
+                  color = "black",
+                  collapsible = TRUE, collapsed = T, width = NULL,
+                  p(
+                    "Hierarchical clustering takes a ",
+                    a(
+                      href = "https://en.wikipedia.org/wiki/Distance_matrix",
+                      "distance matrix"
+                    ),
+                    " and uses the following procedure to classify each item from 
+                    a given dataset into a multiple levels of clusters:",
+                    tags$ul(
+                      tags$li("Assign each item to a cluster, so that if you have 
+                              N items, you now have N clusters, each with one item"),
+                      tags$li("Find the closest pair of clusters and merge them, 
+                              so there is one less cluster"),
+                      tags$li("Compute distances between the new cluster and each 
+                              of the old clusters"),
+                      tags$li("Repeat steps 2 and 3 until all items are in single 
+                              cluster of size N")
+                    )
+                  )
+                )
+              )
+            )
+          )
+        ),
+        column(
+          width = 8,
+          box(
+            title = "Summary of Clusters",
+            status = "warning",
+            collapsible = T,
+            width = NULL,
+            p(
+              em("The table below shows information for each of the clusters, 
+                 as well as the average scores on each subscale of the SIS for 
+                 people in that cluster:")
+            ),
+            DT::dataTableOutput("need_grp_dt"),
+            box(
+              title = "Settings", 
+              color = "black",
+              collapsible = TRUE, collapsed = T, width = NULL,
+              radioButtons(
+                "dt_clust_type",
+                label = "Summarize groups using:",
+                choices = c("k-means clusters","hierarchical clusters"), 
+                selected = "k-means clusters",
+                inline = T
+              ),
+              p(
+                "To dig in and analyze the groupings created by the ",
+                em("k-means"), " algorithm, go to the ",
+                em("Visualizing Groups"), " tab.  To see the groups made by ",
+                em("hierarchical clustering"), ", check out the ",
+                em("Heatmap"), " visualization..."
+              )
+            )
+          ),
+          box(
+            title = "Visualizing Groups",
+            status = "warning",
+            collapsible = T,
+            collapsed = T,
+            width = NULL,
+            tabBox(
+              width = NULL,
+              tabPanel(
+                "What to compare?",
+                p(
+                  "People are wonderfully complex, even when you're just looking 
+                  at how they score on an assessment. This complexity can be 
+                  hard to visualize all at once. Since the k-means algorithm 
+                  groups people based on a number of variables taken together (", 
+                  em("here, the SIS subscales"), "), it's helpful to look at 
+                  different life areas to see how they vary across the clustered 
+                  groups. Below you can select the variables you'd like to 
+                  visualize before moving to the ", em("Visualize"), " panel."
+                ),
+                uiOutput("k_vars")
+              ),
+              tabPanel(
+                "Visualize",
+                plotlyOutput("need_km")
+              )
+            )
+          ),
+          box(
+            title = "Heatmap",
+            status = "warning",
+            collapsible = T,
+            collapsed = T,
+            width = NULL,
+            tabBox(
+              width = NULL,
+              tabPanel(
+                "Plot",
+                d3heatmapOutput("need_heat")
+              ),
+              tabPanel(
+                "About",
+                p(
+                  "The visualization here is called a ",
+                  a(
+                    href = "https://en.wikipedia.org/wiki/Heat_map",
+                    "heatmap"
+                  ),
+                  ".  This one shows the most recent scores for each 
+                  client who has received a SIS assessment. The values 
+                  of each subscale have been ", 
+                  a(
+                    href = "https://stat.ethz.ch/R-manual/R-devel/library/base/html/scale.html",
+                    "normalized"
+                  ),
+                  " to allow for comparison.  Darker blue means a higher 
+                  score, while lighter blue means a lower score. You can 
+                  click and drag over cells to zoom in and look more 
+                  closely at a given set."),
+                p("Here you can look at broader patterns of need across life 
+                  domains for the current population of clients who have been 
+                  assessed.  The root-like shapes on the sides of the heatmap 
+                  are called", 
+                  a(
+                    href = "http://wheatoncollege.edu/lexomics/files/2012/08/How-to-Read-a-Dendrogram-Web-Ready.pdf",
+                    "dendrograms"
+                  ),
+                  "and they show how the different elements (here, clients and 
+                  subscales) are grouped.  The clusters clients whose 
+                  patterns of need are most distinct based on the SIS subscales 
+                  are shown in different colors. To allow you to more easily see these 
+                  groupings, the heatmap allows you to select a number of groups 
+                  (colors) to highlight for both the rows and columns."
+                )
+              )
+            )
+          )
+        )
+      ),
+      tabItem(
         tabName = "inter_rater",
         fluidRow(
           column(
@@ -1313,139 +1598,6 @@ dashboardPage(
                         "CMHSPs may be interested in identifying how these areas 
                         are addressed through the development of individual 
                         plans of service (IPOS)."
-                      )
-                    )
-                  )
-                )
-              )
-            )
-          ),
-          column(
-            width = 12,
-            box(
-              title = "Patterns of Need", 
-              status = "warning",
-              collapsible = TRUE, 
-              collapsed = TRUE,
-              width = NULL,
-              tabBox(
-                width = NULL,
-                tabPanel(
-                  "Defining Patterns",
-                  p(
-                    "To design programs that meet people where they are, it 
-                    helps to understand patterns in the types of needs that 
-                    people have in various areas of their lives. You can 
-                    check out the ", em("Scenarios"), " tab for examples of 
-                    situations where this may be useful."  
-                  ),
-                  h4("How many groups of people? (Rows)"),
-                  p(
-                    "Depending on your particular situation, you may want to 
-                    focus on greater or fewer groups of clients, each of 
-                    whom is depicted as a row in the heatmap.  You can 
-                    select the number of groups here.  This will 
-                    color the clusters of the groups of clients whose 
-                    patterns of need are most distinct, based on the SIS 
-                    subscales:"
-                  ),
-                  numericInput(
-                    inputId = "need_rows",
-                    label = NULL, 
-                    value = 5,
-                    min = 1, 
-                    max = 10,
-                    width = '100px'
-                  ),
-                  p(
-                    "Then, click on the ", em("Heatmap"), " tab to explore 
-                    the groups in your population."
-                  )
-                ),
-                tabPanel(
-                  "Heatmap",
-                  d3heatmapOutput("need_heat")
-                ),
-                tabPanel(
-                  "About",
-                  tabBox(
-                    width = NULL,
-                    tabPanel(
-                      "Heatmap",
-                      p(
-                        "The visualization here is called a ",
-                        a(
-                          href = "https://en.wikipedia.org/wiki/Heat_map",
-                          "heatmap"
-                        ),
-                        ".  This one shows the most recent scores for each 
-                        client who has received a SIS assessment. The values 
-                        of each subscale have been ", 
-                        a(
-                          href = "https://stat.ethz.ch/R-manual/R-devel/library/base/html/scale.html",
-                          "normalized"
-                        ),
-                        " to allow for comparison.  Darker blue means a higher 
-                        score, while lighter blue means a lower score. You can 
-                        click and drag over cells to zoom in and look more 
-                        closely at a given set."),
-                      p(
-                        "Here you can look at broader patterns of need across life 
-                        domains for the current population of clients who have 
-                        been assessed.  Clustering is an exploratory technique.  
-                        It won't give you any conclusive results, but may 
-                        generate insights and additional questions for analysis.  
-                        The root-like shapes on the sides of the heatmap are 
-                        called", 
-                        a(
-                          href = "http://wheatoncollege.edu/lexomics/files/2012/08/How-to-Read-a-Dendrogram-Web-Ready.pdf",
-                          "dendrograms"
-                        ),
-                        "and they show how the different elements (here, clients 
-                        and subscales) are grouped.  To allow you to more easily 
-                        see these groupings, the heatmap allows you to select a 
-                        number of groups (colors) to highlight for both the rows 
-                        and columns."
-                      )
-                    ),
-                    tabPanel(
-                      "Scenarios",
-                      p(
-                        "The following scenarios provide examples of instances 
-                        where it may be helpful to define patterns of need in 
-                        the population being served:"
-                      ),
-                      h4("Specialized Teams"), 
-                      p(
-                        "  A supervisor of a supports coordination team for 
-                        persons with I/DD would like to start a pilot program
-                        providing intensive, multi-disciplinary team based 
-                        integrated care for quadrant four consumers (persons 
-                        with high behavioral health and physical health needs 
-                        as defined in the Four Quadrant Clinical Integration 
-                        Model). She could use the heat map to identify a group 
-                        of patients for whom this intervention could be offered.",
-                        em("(In this instance, if she were trying to assign people 
-                           to 3 supports coordination programs, she may want to 
-                           highlight 3 groups)")
-                      ),
-                      h4("Best Practice Guidelines"), 
-                      p(
-                        "  A clinical director would like to identify clinical 
-                        guidelines to assist clinicians in recommending best 
-                        practices based on peoples needs. A first step could be 
-                        taking the domains listed on the heat map and 
-                        identifying any evidence based or best practice 
-                        interventions that meet that particular need for people 
-                        with I/DD."
-                      ),
-                      h4("Training Needs"), 
-                      p(
-                        "  A clinical director would like to know what types of 
-                        trainings would benefit the clinicians serving persons 
-                        with I/DD at his agency. He could look at the heat map 
-                        and determine which three areas represent the highest 
-                        need within the entire I/DD population served."
                       )
                     )
                   )
