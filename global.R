@@ -14,6 +14,7 @@
   library(forcats)
   library(magrittr)
   library(tidyr)
+  library(broom)
   library(googlesheets)
   library(plotly)
   library(xts)
@@ -376,4 +377,11 @@
                                       ifelse(import_for == T, "For",
                                              "Not endorsed")))) %>%
     select(-import_to_n, -import_for_n, -n)
+  
+
+# Add color palettes
+  
+  soft_12 <- c("#c64457","#d7532a","#ae5d35","#d0ab2c","#a69743",
+               "#7ac43e","#59a653","#45bc8d","#20d8fd","#725eb3",
+               "#934fd0","#c04b91")
   
