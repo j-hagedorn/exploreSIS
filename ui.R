@@ -931,14 +931,13 @@ dashboardPage(
                   "To design programs that meet people where they are, it 
                   helps to understand patterns in the types of needs that 
                   people have in various areas of their lives. You can 
-                  check out the ", em("Scenarios"), " tab for examples of 
-                  situations where this may be useful."  
+                  check out the ", em("Why group?"), " tab for examples of 
+                  scenarios where this may be useful."  
                 ),
                 h4("How many groups of people?"),
                 p(
                   "Depending on your particular situation, you may want to 
-                  focus on greater or fewer groups of clients, each of 
-                  whom is depicted as a row in the heatmap.  You can 
+                  focus on greater or fewer groups of clients.  You can 
                   select the number of groups here: "
                 ),
                 numericInput(
@@ -960,8 +959,13 @@ dashboardPage(
                   collapsed = T,
                   width = NULL,
                   p(
-                    "To find the maximum number of meaningful clusters, don't go 
-                    farther than the elbow of the chart below..."
+                    "This is called a scree plot, and it shows the amount of 
+                    variation explained by each additional cluster added.  
+                    You'll note that after a certain point, the line starts 
+                    going straight across the bottom, which means that new 
+                    clusters don't do much to identify coherent groups.  
+                    To find the maximum number of meaningful clusters, don't go 
+                    farther than the 'elbow' of the chart below..."
                   ),
                   plotlyOutput("need_scree")
                 )
@@ -1164,8 +1168,9 @@ dashboardPage(
                     "heatmap"
                   ),
                   ".  This one shows the most recent scores for each 
-                  client who has received a SIS assessment. The values 
-                  of each subscale have been ", 
+                  client who has received a SIS assessment. Each client is 
+                  depicted as a row in the heatmap.  The values of the scores
+                  for each subscale have been ", 
                   a(
                     href = "https://stat.ethz.ch/R-manual/R-devel/library/base/html/scale.html",
                     "normalized"
