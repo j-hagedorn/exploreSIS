@@ -1292,13 +1292,6 @@ dashboardPage(
               collapsed = TRUE,
               width = NULL,
               uiOutput('id_drop'), # filter reactive based on selected filters
-              radioButtons(
-                "pick_dom",
-                label = "Display needs by:",
-                choices = c("SIS Section", "QOL Domain"), 
-                selected = "SIS Section",
-                inline = T
-              ),
               tabBox(
                 width = NULL,
                 tabPanel(
@@ -1385,76 +1378,105 @@ dashboardPage(
                   )
                 ),
                 tabPanel(
-                  "Endorsed by Person",
-                  dataTableOutput("ipos_tofor"),
+                  "Support Needs",
+                  dataTableOutput("ipos_need"),
                   br(),
-                  p(
-                    "The items displayed above were endorsed by either 
-                    the person (", em("To"), 
-                    "), members of their support system ", em("For"), 
-                    "), or both (", em("To and For"), 
-                    ") as being important in the person's life." 
-                  ),
-                  p(
-                    "These items should be considered a priority during the 
-                    person-centered planning process. Case managers can use 
-                    the information here to:",
-                    tags$ul(
-                      tags$li("prompt the person to consider whether to pursue 
-                              a new goal"),
-                      tags$li("consider potential referrals for additional 
-                              supports"),
-                      tags$li("revisit items already addressed in the person's 
-                              previous plan of service"),
-                      tags$li("note items that will be addressed in future 
-                              planning")
+                  box(
+                    title = "Settings", 
+                    color = "black",
+                    collapsible = TRUE, collapsed = T, width = NULL,
+                    radioButtons(
+                      "pick_dom",
+                      label = "Display needs by:",
+                      choices = c("SIS Section", "QOL Domain"), 
+                      selected = "SIS Section",
+                      inline = T
+                    ),
+                    p(
+                      "The numeric scores (", em("shaded by intensity of need"),
+                      ") shown in the table are comprised of scores for the 
+                      intensity of ",
+                      em("Type"),", ", em("Frequency"), ", and ", 
+                      em("Daily Support Time"), "related to the need."
+                    ),
+                    selectInput(
+                      "filter_ipos",
+                      label = "Include needs which are...",
+                      choices = c("Important to or for this person",
+                                  "Important to/for, or in a higher risk area",
+                                  "All needs"), 
+                      selected = "Important to or for this person"
+                    ),
+                    p(
+                      "Below you can see what's included and excluded by each of
+                      the filter options above:"
+                    ),
+                    p(
+                      strong("Important to or for this person: "),
+                      "The items displayed above were endorsed by either 
+                      the person (", em("To"), 
+                      "), members of their support system ", em("For"), 
+                      "), or both (", em("To and For"), 
+                      ") as being important in the person's life.",
+                      "These items should be considered a priority during the 
+                      person-centered planning process. Case managers can use 
+                      the information here to:",
+                      tags$ul(
+                        tags$li("prompt the person to consider whether to pursue 
+                                a new goal"),
+                        tags$li("consider potential referrals for additional 
+                                supports"),
+                        tags$li("revisit items already addressed in the person's 
+                                previous plan of service"),
+                        tags$li("note items that will be addressed in future 
+                                planning")
+                      ),
+                      "Items which were endorsed as important but which did not 
+                      have any need indicated during the assessment (", 
+                      em("i.e. where the score was zero"),
+                      ") are not included in the list above."
+                    ),
+                    p(
+                      "Items from the ", em("Behavioral Supports"), " and ", 
+                      em("Medical Supports"), " sections do not have the option 
+                      of being endorsed as important by the person or their 
+                      support network.  These items are included in the ", 
+                      em("Medical/Behavioral"), " tab."
+                    ),
+                    p(
+                      strong("Important to/for, or in a higher risk area: "),
+                      "This option will also display any items that are marked as 
+                      important to or for the person, and also includes needs in 
+                      any of the following areas: ",
+                      em(paste(needs$item_desc[needs$need_svc == T 
+                                               & needs$section != "Q1A" 
+                                               & needs$section != "Q1B"],
+                               sep = '',collapse = ', '))
+                    ),
+                    p(
+                      strong("All needs:"),
+                      "This option displays all needs with a score of greater 
+                      than zero, regardless of whether they were marked as 
+                      important to the person or if they are related to a higher 
+                      risk area."
                     )
-                  ),
-                  p(
-                    "The numeric scores (", em("shaded by intensity of need"),
-                    ") shown in the table are comprised of scores for the 
-                    intensity of ",
-                    em("Type"),", ", em("Frequency"), ", and ", 
-                    em("Daily Support Time"), "related to the need."
-                  ),
-                  p(
-                    "Items which were endorsed as important but which did not 
-                    have any need indicated during the assessment (", 
-                    em("i.e. where the score was zero"),
-                    ") are not included in the list above."
-                  ),
-                  p(
-                    "Items from the ", em("Behavioral Supports"), " and ", 
-                    em("Medical Supports"), " sections do not have the option 
-                    of being endorsed as important by the person or their 
-                    support network.  These items are included in the ", 
-                    em("Additional Needs"), " tab."
                   )
                 ),
                 tabPanel(
-                  "Additional Needs",
+                  "Medical/Behavioral",
                   p(
                     "In addition to the needs endorsed by the person or their 
-                    supports, there are a number of basic needs that the plan 
-                    of service should also address (",
+                    supports, there are a number of exceptional medical and 
+                    behavioral needs that the plan of service should also address (",
                     em("eating, for example"),").  These are listed below:"
                   ),
-                  dataTableOutput("ipos_need"),
+                  dataTableOutput("ipos_mb"),
                   br(),
                   p(
-                    "The ", em("Behavioral Supports"), " and ", 
+                    "Note that the ", em("Behavioral Supports"), " and ", 
                     em("Medical Supports"), " areas use a different scale (0-2) 
                     than the items in the other sections of the SIS.  Items with 
                     scores of 1 or 2 are highlighted for emphasis."
-                  ),
-                  p(
-                    "Needs in any of the following areas are included here: ",
-                    em(paste(needs$item_desc[needs$need_svc == T],sep = '',collapse = ', '))
-                  ),
-                  p(
-                    "Needs from the areas listed above which were endorsed by 
-                    the person or their supports are also included in the ",
-                    em("Endorsed by Person"), " tab and are repeated here."
                   )
                 ),
                 tabPanel(
@@ -1502,7 +1524,12 @@ dashboardPage(
                     the individual may benefit from additional assessment 
                     in the area(s) indicated below to determine if any 
                     ongoing ancillary services are medically necessary or 
-                    if any changes to existing care plans are needed."
+                    if any changes to existing care plans are needed.  Please 
+                    note that only exceptional medical or behavioral needs cue 
+                    the potential referrals listed below.  The list below is 
+                    intended to prompt consideration and is not intended to 
+                    imply that any given referral decision is clinically 
+                    appropriate or inappropriate."
                   ),
                   dataTableOutput("ipos_refer")
                 )

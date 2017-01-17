@@ -1480,44 +1480,40 @@
           
       })
       
-      output$ipos_tofor <- renderDataTable({
+      output$ipos_need <- renderDataTable({
         
         withProgress(message = 'Checking...',
                      detail = 'personal preferences',
                      value = 0.1, 
                      {
+                       # Display Section or QOL area based on user input
                        if ( input$pick_dom == "SIS Section") {
-                         
-                         DT_in <-
-                           s1_3Input() %>% 
-                           group_by(fake_id) %>%
-                           filter(fake_id == input$id_drop
-                                  & as.Date(sis_date) == max(as.Date(sis_date))) %>%
-                           filter(import_to == T | import_for == T) %>%
-                           filter(score > 0) %>%
-                           arrange(section_desc,desc(score)) %>%
-                           ungroup() %>%
-                           select(section_desc,item_desc,score,
-                                  type,frequency,DST,importance)
-                         
+                         DT_in <- s1_3Input() %>% rename(domain = section_desc)
                        } else if (input$pick_dom == "QOL Domain") {
-                         
-                         DT_in <-
-                           s1_3Input() %>% 
-                           group_by(fake_id) %>%
-                           filter(fake_id == input$id_drop
-                                  & as.Date(sis_date) == max(as.Date(sis_date))) %>%
-                           filter(import_to == T | import_for == T) %>%
-                           filter(score > 0) %>%
-                           arrange(qol,desc(score)) %>%
-                           ungroup() %>%
-                           select(qol,item_desc,score,
-                                  type,frequency,DST,importance)
-                         
+                         DT_in <- s1_3Input() %>% rename(domain = qol)
                        } else
                          print(paste0("Error.  Unrecognized input."))
-                        
+                       
+                       # Filter needs displayed based on user selection
+                       if ( input$filter_ipos == "Important to or for this person") {
+                         DT_in %<>% filter(import_to == T | import_for == T) 
+                       } else if (input$filter_ipos == "Important to/for, or in a higher risk area") {
+                         DT_in %<>% filter(import_to == T | import_for == T | need_svc == T)
+                       } else if (input$filter_ipos == "All needs") {
+                         DT_in <- DT_in
+                       } else
+                         print(paste0("Error.  Unrecognized input."))
+                       
                        DT_in %>%
+                         group_by(fake_id) %>%
+                         filter(fake_id == input$id_drop
+                                & as.Date(sis_date) == max(as.Date(sis_date))) %>%
+                         filter(!grepl("^Q1",section)) %>% # Exclude Section 1 items
+                         filter(score > 0) %>%
+                         arrange(domain,desc(score)) %>%
+                         ungroup() %>%
+                         select(domain,item_desc,score,
+                                type,frequency,DST,importance) %>%
                          datatable(
                            rownames = F,
                            colnames = c('Area','Need','Score',
@@ -1536,49 +1532,33 @@
         
       })
       
-      output$ipos_need <- renderDataTable({
+      output$ipos_mb <- renderDataTable({
         
         withProgress(message = 'Identifying...',
                      detail = 'personal needs',
                      value = 0.1, 
                      {
-
+                       # Display Section or QOL area based on user input
                        if ( input$pick_dom == "SIS Section") {
-                       
-                         DT_in <-
-                           s1_3Input() %>% 
-                           group_by(fake_id) %>%
-                           filter(fake_id == input$id_drop
-                                  & as.Date(sis_date) == max(as.Date(sis_date))) %>%
-                           filter(need_svc == T) %>% # 
-                           filter(score > 0) %>%
-                           arrange(section_desc,desc(score)) %>%
-                           ungroup() %>%
-                           select(section_desc,item_desc,score,
-                                  type,frequency,DST) 
-                       
+                         DT_in <- s1_3Input() %>% rename(domain = section_desc)
                        } else if (input$pick_dom == "QOL Domain") {
-                       
-                         DT_in <-
-                           s1_3Input() %>% 
-                           group_by(fake_id) %>%
-                           filter(fake_id == input$id_drop
-                                  & as.Date(sis_date) == max(as.Date(sis_date))) %>%
-                           filter(need_svc == T) %>% # 
-                           filter(score > 0) %>%
-                           arrange(qol,desc(score)) %>%
-                           ungroup() %>%
-                           select(qol,item_desc,score,
-                                  type,frequency,DST) 
-                         
+                         DT_in <- s1_3Input() %>% rename(domain = qol)
                        } else
                          print(paste0("Error.  Unrecognized input."))
-               
-                       DT_in %>%
+                       
+                       DT_in %>% 
+                         group_by(fake_id) %>%
+                         filter(fake_id == input$id_drop
+                                & as.Date(sis_date) == max(as.Date(sis_date))) %>%
+                         filter(grepl("^Q1",section)) %>% # Include only Section 1 items
+                         filter(score > 0) %>%
+                         arrange(domain,desc(score)) %>%
+                         ungroup() %>%
+                         select(domain,item_desc,score,
+                                type) %>%
                          datatable(
                            rownames = F,
-                           colnames = c('Area','Need','Score',
-                                        'Type of Support','Frequency','Daily Support Time'),
+                           colnames = c('Area','Need','Score','Type of Support'),
                            options = list(pageLength = nrow(DT_in),
                                           dom = 't')
                          ) %>%
@@ -1595,7 +1575,6 @@
                                                    c('bold', 'bold'))
                          )
                      })
-        
 
       })
       
@@ -1605,7 +1584,6 @@
                      detail = 'needs for PC/CLS',
                      value = 0.1, 
                      {
-                       
                        pccls <- svs2sis(c("T1020","H2016"))
                        
                        if ( input$pick_dom == "SIS Section") {
@@ -1645,20 +1623,12 @@
                          datatable(
                            rownames = F,
                            colnames = c('Frequency','Daily Support Time','Type of Support',
-                                        'Score','Area','Need'
-                                        ),
+                                        'Score','Area','Need'),
                            options = list(pageLength = nrow(DT_in),
                                           dom = 't')
                          ) %>%
                          formatStyle(
-                           'score',
-                           color = styleInterval(c(6), c("#800026","#ffffcc")),
-                           backgroundColor = styleInterval(c(1:8), brewer.pal(9,"YlOrRd"))
-                         ) %>%
-                         formatStyle(
                            'type', 
-                           color = styleEqual(c("Some Support Needed","Extensive Support Needed"), 
-                                              c("#800026", "#fc4e2a")),
                            fontWeight = styleEqual(c("Some Support Needed","Extensive Support Needed"), 
                                                    c('bold', 'bold'))
                          )
@@ -1676,8 +1646,10 @@
                        group_by(fake_id) %>%
                        filter(fake_id == input$id_drop
                               & as.Date(sis_date) == max(as.Date(sis_date))) %>%
+                       filter(grepl("^Q1",section)) %>% # Include only Section 1 items
                        filter(need_svc == T | import_to == T | import_for == T) %>% 
-                       filter(refer_ot == T | refer_nurs== T | refer_sp == T | refer_pt == T | refer_diet) %>%
+                       filter(refer_ot == T | refer_nurs== T | refer_sp == T 
+                              | refer_pt == T | refer_diet == T) %>%
                        filter(score > 0) %>%
                        ungroup() %>%
                        gather(refer_to,YorN,refer_ot:refer_diet) %>%
