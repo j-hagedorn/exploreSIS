@@ -12,50 +12,88 @@
                  & as.Date(sis_date) <= input$dateRange[2])
       })
       
-      recentInput <- reactive({
+      sisByAgency <- reactive({  
         
-        sisInput() %>%
-          filter(as.Date(sis_date) >= most_recent - (365 * 3))
+        region_filt <- if (input$region == "All") {
+          levels(sisInput()$PIHP)
+        } else input$region
         
+        agency_filt <- if (input$agency == "All") {
+          levels(sisInput()$agency)
+        } else input$agency
+        
+        sisInput() %>% 
+          filter(PIHP %in% region_filt
+                 & agency %in% agency_filt)
+          
       })
       
       per_wk <- reactive({
         
-        if ( input$agency == "All" ) {
-          
-          per_wk <- 
-            scrub_sis %>%
-            # Filter out expired assessments (> 3 yrs old)
-            filter(due - as.Date(sis_date) <= (365 * 3)) %>%
-            # Note we still use unfiltered dataset here to calc cum sum over wks
-            # without the date filter applied
-            filter(as.POSIXct(sis_date) >= as.POSIXct("2011-12-12")
-                   & as.Date(sis_date) <= Sys.Date()
-            ) %>%
-            group_by(sis_yrwk) %>%
-            summarize(n = n()) %>%
-            rename(week = sis_yrwk) %>%
-            mutate(avg = NA,
-                   need = NA) %>%
-            ungroup()
-          
-        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
-          per_wk <- 
-            scrub_sis %>%
-            # Filter out expired assessments (> 3 yrs old)
-            filter(due - as.Date(sis_date) <= (365 * 3)) %>%
-            filter(as.POSIXct(sis_date) >= as.POSIXct("2011-12-12")
-                   & as.Date(sis_date) <= Sys.Date()
-                   & agency == input$agency
-            ) %>%
-            group_by(sis_yrwk) %>%
-            summarize(n = n()) %>%
-            rename(week = sis_yrwk) %>%
-            mutate(avg = NA,
-                   need = NA) %>%
-            ungroup()
-        } else
-          print(paste0("Error.  Unrecognized input."))
+        per_wk <- 
+          sisByAgency() %>%
+          # Filter out expired assessments (> 3 yrs old)
+          filter(due - as.Date(sis_date) <= (365 * 3)) %>%
+          # Note we still use unfiltered dataset here to calc 
+          # cumsum over wks without the date filter applied
+          filter(as.POSIXct(sis_date) >= as.POSIXct("2011-12-12")
+                 & as.Date(sis_date) <= Sys.Date()) %>%
+          group_by(sis_yrwk) %>%
+          summarize(n = n()) %>%
+          rename(week = sis_yrwk) %>%
+          mutate(week = as.Date(week),
+                 avg = NA,
+                 need = NA) %>%
+          ungroup()
+        
+        if ((max(per_wk$week) + 7) > most_recent) {
+          # If filtered dataset does contain most recent date, leave it be
+          per_wk <- per_wk
+        } else {
+          # Create empty per week entries between last in seq and most recent in entire dataset
+          new_wk <- seq.Date(from = max(per_wk$week) + 7, to = most_recent, by = "week") 
+          new_wk <- as.data.frame(new_wk)
+          new_wk %<>% rename(week = new_wk) %>% mutate(n = 0, avg = NA, need = NA)
+          per_wk %<>% rbind(new_wk)
+        }
+        
+      })
+      
+      on_track_vars <- reactive({
+        
+        region_filt <- if (input$region == "All") {
+          levels(sisInput()$PIHP)
+        } else input$region
+        
+        agency_filt <- if (input$agency == "All") {
+          levels(sisInput()$agency)
+        } else input$agency
+        
+        # Generate list of reactive vars filtered based on inputs
+        # to be used in calculations for 'on_track' and 'on_track_what_if' viz
+        
+        # Calculate average per week
+        # Note that average per week is calculated for assessments completed within past 90 days
+        # If a CMH has no assessments in the previous 90 days, an error is generated 
+        avg_per_wk <- round(median(per_wk()$n[as.POSIXct(per_wk()$week) >= as.POSIXct(most_recent - 90)], 
+                                 na.rm = T), digits = 0)
+        
+        recent_int <- length(unique(sisByAgency()$interviewer[as.POSIXct(sisByAgency()$sis_date) >= as.POSIXct(most_recent - 90)]))
+
+        avg_person_wk <- ceiling( avg_per_wk / recent_int )
+        
+        total_needed <- 
+          totals %>% 
+          filter(region %in% region_filt
+                 & agency %in% agency_filt) %>%
+          summarize(total = sum(total, na.rm = T))
+        
+        
+        # Output as named list
+        list(avg_per_wk = avg_per_wk,
+             recent_int = recent_int,
+             avg_person_wk = avg_person_wk,
+             total_needed = total_needed[1,1])
         
       })
       
@@ -70,7 +108,7 @@
       tos2Input <- reactive({
         
         sec2Input() %>%
-          group_by(agency, section_desc, item_desc, 
+          group_by(PIHP, agency, section_desc, item_desc, 
                    type, frequency, DST) %>%
           summarize(n = n(),
                     type_tot = sum(type_n),
@@ -91,7 +129,7 @@
       tos3Input <- reactive({
         
         sec3Input() %>%
-          group_by(agency, item_desc, type, 
+          group_by(PIHP, agency, item_desc, type, 
                    frequency, DST) %>%
           summarize(n = n(),
                     type_tot = sum(type_n),
@@ -104,9 +142,9 @@
       sec1Input <- reactive({
         
         sisInput() %>%
-          select(fake_id, agency, sis_date,  
+          select(fake_id, PIHP, agency, sis_date,  
                  starts_with("Q1")) %>%
-          select(fake_id, agency, sis_date,  
+          select(fake_id, PIHP, agency, sis_date,  
                  ends_with("support")) %>%
           gather(item,score,Q1A1_ExMedSupport:Q1B13_ExBehSupport) %>%
           mutate(item = gsub("ExMedSupport", "", item),
@@ -116,7 +154,7 @@
                                      1 = 'Some Support Needed';
                                      2 = 'Extensive Support Needed'")) %>%
           left_join(needs, by = "item") %>%
-          select(fake_id,agency,sis_date, 
+          select(fake_id,PIHP,agency,sis_date, 
                  section,section_desc,item,item_desc,qol,
                  need_svc,score,
                  refer_ot,refer_nurs,refer_sp,refer_pt,refer_diet,
@@ -128,7 +166,7 @@
         
         q2_filt <-
           sec2Input() %>%
-          select(fake_id,agency,sis_date,
+          select(fake_id,PIHP,agency,sis_date,
                  section,section_desc,item,item_desc,qol,
                  need_svc,score,
                  refer_ot,refer_nurs,refer_sp,refer_pt,refer_diet,
@@ -139,7 +177,7 @@
         
         q3_filt <-
           sec3Input() %>%
-          select(fake_id,agency,sis_date,
+          select(fake_id,PIHP,agency,sis_date,
                  section,section_desc,item,item_desc,qol,
                  need_svc,score,
                  refer_ot,refer_nurs,refer_sp,refer_pt,refer_diet,
@@ -150,7 +188,7 @@
         
         q1_filt <-
           sec1Input() %>%
-          select(fake_id,agency,sis_date,
+          select(fake_id,PIHP,agency,sis_date,
                  section,section_desc,item,item_desc,qol,
                  need_svc,score,
                  refer_ot,refer_nurs,refer_sp,refer_pt,refer_diet,
@@ -179,7 +217,7 @@
       
       boxInput <- reactive({
         
-        sisInput() %>%
+        sisByAgency() %>%
           filter(current_int == T) %>%
           droplevels() %>%
           select(interviewer,
@@ -213,13 +251,7 @@
         
         #  Make dataframe for use in cluster analyses
         
-        if ( input$agency == "All" ) {
-          df <- sisInput() 
-        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
-          df <- sisInput() %>% filter(agency == input$agency) 
-        } else print(paste0("Error.  Unrecognized input.")) 
-        
-        df %>%
+        sisByAgency() %>%
           filter(is.na(fake_id) == FALSE) %>% # Remove empty randomized IDs
           # Include only most recent assessment data per ID
           group_by(fake_id) %>% 
@@ -238,7 +270,8 @@
           select(medical,behavior,home,community,safety,
                  learning,employment,social,advocacy)  %>%
           filter(is.na(medical) == F) %>%
-          mutate_each(funs( as.numeric(scale(.) )))
+          mutate_each(funs( as.numeric(scale(.) ))) %>% 
+          filter(complete.cases(.))
         
       })
       
@@ -286,13 +319,29 @@
         
       })
       
+      output$agency <- renderUI({
+        
+        filtre <- if (input$region == "All") {
+          levels(scrub_sis$agency)
+        } else 
+          levels(droplevels(scrub_sis$agency[scrub_sis$PIHP == input$region]))
+        
+        selectInput(
+          "agency",
+          label = "Pick an agency:",
+          choices = c("All", filtre), 
+          selected = "All"
+        )
+        
+      })
+      
       output$what_staff <- renderUI({
         
         sliderInput(
           inputId = "what_staff", 
           "...we changed the number of SIS interviewers?",
-          min = length(unique(scrub_sis$interviewer[as.POSIXct(scrub_sis$sis_date) >= as.POSIXct(most_recent - 90)])) * -1,
-          max = length(unique(scrub_sis$interviewer[as.POSIXct(scrub_sis$sis_date) >= as.POSIXct(most_recent - 90)])),
+          min = on_track_vars()$recent_int * -1,
+          max = on_track_vars()$recent_int,
           value = 0,
           step = 1,
           round = T
@@ -302,25 +351,16 @@
       
       output$what_prod <- renderUI({
 
-        per_wk <- per_wk()
         
-        avg_per_wk <- round(mean(per_wk$n[as.POSIXct(per_wk$week) >= as.POSIXct(most_recent - 90)], 
-                                   na.rm = T), 
-                            digits = 0)
-
-        recent_int <- length(unique(scrub_sis$interviewer[as.POSIXct(scrub_sis$sis_date) >= as.POSIXct(most_recent - 90)]))
-        
-        avg_person_wk <- avg_per_wk / recent_int
-        
-        min_avg_wk <- round(ceiling(avg_person_wk) * 0.5, digits = 0)
-        max_avg_wk <- round(ceiling(avg_person_wk) * 3, digits = 0)
+        min_avg_wk <- round(on_track_vars()$avg_person_wk * 0.5, digits = 0)
+        max_avg_wk <- round(on_track_vars()$avg_person_wk * 3, digits = 0)
         
         sliderInput(
           inputId = "what_prod",
           "...each interviewer completed fewer/more assessments per week?",
           min = 0,
           max = ifelse(max_avg_wk < 3, yes = 3, no = max_avg_wk),
-          value = avg_person_wk,
+          value = on_track_vars()$avg_person_wk,
           step = 0.5,
           round = T
         )
@@ -372,10 +412,10 @@
       })
       
       output$id_drop <- renderUI({
-        sisInput <- sisInput()
+        
         selectInput("id_drop",
                     label = "Select an individual:",
-                    choices = levels(unique(as.factor(sisInput$fake_id)))
+                    choices = levels(unique(as.factor(sisByAgency()$fake_id)))
                     )
       })
       
@@ -410,32 +450,21 @@
           as.numeric(as.POSIXct(input$dateRange[2]) - as.POSIXct(input$dateRange[1])) / 
           as.numeric(as.POSIXct(due) - as.POSIXct(input$dateRange[1])) * 100
         
-        # Filter out expired assessments (> 3 yrs old)
-        
         sisIn <- 
-        recentInput() %>% 
+          sisByAgency() %>%
+          # Filter out expired assessments (> 3 yrs old)
+          filter(as.Date(sis_date) >= most_recent - (365 * 3)) %>%
+          # Filter out expired assessments as of due date (> 3 yrs old)
           filter(as.Date(due) - as.Date(sis_date) <= (365 * 3)) %>%
           droplevels()
         
         # Proportion of clients interviewed in selected time period 
         # to total current clients meeting criteria
         
-        if ( input$agency == "All" ) {
-          pct <- 
-            nlevels(as.factor(sisIn$fake_id)) /
-            totals$total[totals$agency == input$agency] * 100
+        pct <- 
+          nlevels(as.factor(sisIn$fake_id)) /
+          sum(on_track_vars()$total_needed) * 100
           
-        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
-          assessed <- sisIn %>% filter(agency == input$agency) %>% 
-            summarize(n = n_distinct(fake_id))
-          
-          pct <- 
-            assessed$n /
-            totals$total[totals$agency == input$agency] * 100
-          
-        } else
-          print(paste0("Error.  Unrecognized input."))
-        
         rate <- pct / elapse * 100
         
         valueBox(
@@ -452,30 +481,17 @@
       
       output$complete <- renderValueBox({
         
-        # Filter out expired assessments (> 3 yrs old)
-        most_recent <- max(as.Date(scrub_sis$sis_date)[as.Date(scrub_sis$sis_date) <= Sys.Date()]) 
-        
-        # Filter assessments where the date of assessment is >= 3 yrs
-        # before most recent data
-        # sisIn <- sisInput() %>% filter(most_recent - as.Date(sis_date) <= (365 * 3))
         sisIn <- 
-        sisInput() %>% 
+          sisByAgency() %>%
+          # Filter out expired assessments (> 3 yrs old)
+          filter(as.Date(sis_date) >= most_recent - (365 * 3)) %>%
+          # Filter out expired assessments as of due date (> 3 yrs old)
           filter(as.Date(due) - as.Date(sis_date) <= (365 * 3)) %>%
           droplevels()
         
-        if ( input$agency == "All" ) {
-          pct <- 
-            nlevels(as.factor(sisIn$fake_id)) /
-            totals$total[totals$agency == input$agency] * 100
-        } else if ( input$agency %in% levels(unique(sisIn$agency)) ) {
-          assessed <- sisIn %>% filter(agency == input$agency) %>% 
-            summarize(n = n_distinct(fake_id))
-          
-          pct <- 
-            assessed$n /
-            totals$total[totals$agency == input$agency] * 100
-        } else
-          print(paste0("Error.  Unrecognized input."))
+        pct <- 
+          nlevels(as.factor(sisIn$fake_id)) /
+          sum(on_track_vars()$total_needed) * 100
         
         valueBox(
           paste0(round(pct, digits = 1), "%"), "Complete", 
@@ -486,49 +502,12 @@
       
       output$needperwk <- renderValueBox({
         
-        # Filter out expired assessments (> 3 yrs prior to due date)
-
-        sisIn <- sisInput() %>% filter(as.Date(due) - as.Date(sis_date) <= (365 * 3))
-        
-        if ( input$agency == "All" ) {
-          per_wk <- 
-            sisIn %>%
-            group_by(sis_yrwk) %>%
-            summarize(n = n()) %>%
-            rename(week = sis_yrwk) %>%
-            mutate(avg = NA,
-                   need = NA) %>%
-            ungroup()
-          
-          already <- nlevels(as.factor(scrub_sis$fake_id[as.Date(scrub_sis$sis_date) < input$dateRange[1]]))
-          
-          
-        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
-          per_wk <- 
-            sisIn %>%
-            filter(agency == input$agency) %>%
-            group_by(sis_yrwk) %>%
-            summarize(n = n()) %>%
-            rename(week = sis_yrwk) %>%
-            mutate(avg = NA,
-                   need = NA) %>%
-            ungroup()
-          
-          already <- nlevels(as.factor(scrub_sis$fake_id[scrub_sis$agency == input$agency
-                                                         & as.Date(scrub_sis$sis_date) < input$dateRange[1]]))
-          
-          
-        } else
-          print(paste0("Error.  Unrecognized input."))
-        
-        avgperwk <- round(mean(per_wk$n,na.rm = T), digits = 0)
+        avgperwk <- round(mean(per_wk()$n, na.rm = T), digits = 0)
         
         week <- seq(from = input$dateRange[1], to = due, by = "week")
         
-        
-        needed <- ceiling((totals$total[totals$agency == input$agency] 
-                           - already) / length(week))
-        
+        needed <- ceiling(on_track_vars()$total_needed / length(week))
+          
         valueBox(
           paste0(round(avgperwk, digits = 1), ":",
                  round(needed, digits = 1), " per week"), 
@@ -540,34 +519,14 @@
       
       output$num_dt <- renderDataTable({
         
-        scrub_sis %<>% filter(as.Date(sis_date) >= input$dateRange[1]
-                              & as.Date(sis_date) <= input$dateRange[2])
-        
-        if ( input$agency == "All" ) {
-          num <-
-            scrub_sis %>% 
-            filter(current_int == T) %>% 
-            droplevels() %>%
-            group_by(interviewer) %>%
-            summarize(n = n(),
-                      avg_dur = round(mean(duration, na.rm = T), digits = 0),
-                      first = min(as.POSIXct(sis_date))
-            ) %>% ungroup()
-        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
-          num <-
-            scrub_sis %>% 
-            filter(current_int == T, agency == input$agency) %>% 
-            droplevels() %>%
-            group_by(interviewer) %>%
-            summarize(n = n(),
-                      avg_dur = round(mean(duration, na.rm = T), digits = 0),
-                      first = min(as.POSIXct(sis_date))
-            ) %>% ungroup()
-        } else
-          print(paste0("Error.  Unrecognized input."))
-        
-        
-        num %>%
+        sisByAgency() %>% 
+          filter(current_int == T) %>% 
+          droplevels() %>%
+          group_by(interviewer) %>%
+          summarize(n = n(),
+                    avg_dur = round(mean(duration, na.rm = T), digits = 0),
+                    first = min(as.POSIXct(sis_date))) %>% 
+          ungroup() %>%
           datatable(caption = 'SIS assessment summary by Interviewer.',
                     rownames = FALSE,
                     colnames = c('Interviewer',
@@ -589,29 +548,20 @@
         # Make projection data
         tst <- data.frame(week)
         tst$n <- NA
+        
         tst$avg <- 
-          seq(from = sum(per_wk$n, na.rm = T) +
-                round(mean(per_wk$n[as.POSIXct(per_wk$week) >= as.POSIXct(most_recent - 90) ], 
-                           na.rm = T), 
-                      digits = 0),
-              to = sum(per_wk$n, na.rm = T) +
-                round(mean(per_wk$n[as.POSIXct(per_wk$week) >= as.POSIXct(most_recent - 90) ], 
-                           na.rm = T), 
-                      digits = 0) *
-                length(week),
-              by = round(mean(per_wk$n[as.POSIXct(per_wk$week) >= as.POSIXct(most_recent - 90) ], 
-                              na.rm = T), 
-                         digits = 0)
+          seq(from = sum(per_wk$n, na.rm = T) + on_track_vars()$avg_per_wk,
+              to = sum(per_wk$n, na.rm = T) + on_track_vars()$avg_per_wk * length(week),
+              by = on_track_vars()$avg_per_wk
           )
+        
         tst$need <- 
-          seq(from = sum(per_wk$n, na.rm = T) +
-                ceiling((totals$total[totals$agency == input$agency] 
-                         - sum(per_wk$n, na.rm = T)) / length(week)),
+          seq(from = ceiling(sum(per_wk$n, na.rm = T) +
+                (on_track_vars()$total_needed - 
+                   sum(per_wk$n, na.rm = T)) / length(week)),
               to = sum(per_wk$n, na.rm = T) +
-                ceiling((totals$total[totals$agency == input$agency] 
-                         - sum(per_wk$n, na.rm = T)) / length(week)) *length(week),
-              by = ceiling((totals$total[totals$agency == input$agency] 
-                            - sum(per_wk$n, na.rm = T)) / length(week))
+                ceiling((on_track_vars()$total_needed - sum(per_wk$n, na.rm = T)) / length(week)) * length(week),
+              by = ceiling((on_track_vars()$total_needed - sum(per_wk$n, na.rm = T)) / length(week))
           )
         
         per_wk$week <- as.Date(per_wk$week) # Make date types the same
@@ -638,7 +588,7 @@
                  valueRange = c(0, max(per_wk$need))) %>%
           dySeries("running", label = "Actual", 
                    strokeWidth = 2, fillGraph = TRUE) %>%
-          dySeries("avg", label = "If avg continues",
+          dySeries("avg", label = "If trend continues",
                    strokeWidth = 2, strokePattern = "dashed") %>%
           dySeries("need", label = "To meet goal",
                    strokeWidth = 2, strokePattern = "dashed") %>%
@@ -654,55 +604,50 @@
         
         per_wk <- per_wk()
         
-        week <- seq(from = max(as.Date(per_wk$week)), to = due, by = "week")
+        week <- 
+          # Make a sequence of dates for each week from most recent until due date
+          seq(from = max(as.Date(per_wk$week)[as.Date(per_wk$week) <= Sys.Date()]), 
+              to = due, by = "week") %>%
+          as.data.frame() 
         
-        avg_person_wk <- input$what_prod
+        names(week)[1] <- "week"
         
-        recent_int <- length(unique(scrub_sis$interviewer[as.POSIXct(scrub_sis$sis_date) >= as.POSIXct(most_recent - 90)]))
+        per_wk_nxt <- week %>% mutate(n = NA)
         
-        avg_per_wk <- avg_person_wk * (recent_int + input$what_staff)
+        proj_per_wk <- input$what_prod * (on_track_vars()$recent_int + input$what_staff)
         
-        # Make projection data
-        tst <- data.frame(week)
-        tst$n <- NA
-        tst$avg <- 
-          seq(from = sum(per_wk$n, na.rm = T) + avg_per_wk,
-              to = sum(per_wk$n, na.rm = T) + avg_per_wk * length(week),
-              by = avg_per_wk
-          )
-        tst$need <- 
-          seq(from = sum(per_wk$n, na.rm = T) +
-                ceiling((totals$total[totals$agency == input$agency] 
-                         - sum(per_wk$n, na.rm = T)) / length(week)),
-              to = sum(per_wk$n, na.rm = T) +
-                ceiling((totals$total[totals$agency == input$agency] 
-                         - sum(per_wk$n, na.rm = T)) / length(week)) *length(week),
-              by = ceiling((totals$total[totals$agency == input$agency] 
-                            - sum(per_wk$n, na.rm = T)) / length(week))
-          )
+        # Cumulative performance assuming avg per week
+        per_wk_nxt$avg <- 
+          seq(from = sum(per_wk$n, na.rm = T) + proj_per_wk,
+              to = sum(per_wk$n, na.rm = T) + proj_per_wk * nrow(week),
+              by = proj_per_wk)
         
-        per_wk$week <- as.Date(per_wk$week) # Make date types the same
-        
-        per_wk <- rbind(per_wk,tst)
-        
-        per_wk <-
-          per_wk %>%
+        # Cumulative amount needed per week to consistently reach goal
+        per_wk_nxt$need <- 
+          seq(from = ceiling(sum(per_wk$n, na.rm = T) + 
+                (on_track_vars()$total_needed - 
+                   sum(per_wk$n, na.rm = T)) / nrow(week)),
+              to = sum(per_wk$n, na.rm = T) + ceiling((on_track_vars()$total_needed - sum(per_wk$n, na.rm = T)) / nrow(week)) * nrow(week),
+              by = ceiling((on_track_vars()$total_needed - sum(per_wk$n, na.rm = T)) / nrow(week)))
+                 
+        # Combine historical per week data with projected data
+        per_wk %<>%
+          rbind(per_wk_nxt) %>%
           ungroup() %>%
-          mutate(running = order_by(week, cumsum(n))) 
+          mutate(running = order_by(week, cumsum(n)),
+                 week = as.POSIXct(week)) 
         
-        per_wk$week <- as.POSIXct(per_wk$week)
-        
+        # Make df into an xts (time sseries) object
         per_wk_srs <- as.xts(per_wk$running, order.by=per_wk$week)
-        
+        # Change name and add vars
         names(per_wk_srs)[1]<-"running"
-        
         per_wk_srs$avg <- per_wk$avg
         per_wk_srs$need <- per_wk$need
         
         dygraph(per_wk_srs, main = "What if...? Projections") %>%
           dyAxis("x", label = "Week of Assessments") %>%
           dyAxis("y", label = "# SIS assessments (cumulative)",
-                 valueRange = c(0, max(per_wk$need))) %>%
+                 valueRange = c(0, on_track_vars()$total_needed)) %>%
           dySeries("running", label = "Actual", 
                    strokeWidth = 2, fillGraph = TRUE) %>%
           dySeries("avg", label = "With projected changes",
@@ -718,14 +663,17 @@
       
       output$plans <- renderPlotly({
         
-        if ( input$agency == "All" ) {
-          plans <- sec3Input() 
-        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
-          plans <- sec3Input() %>% filter(agency == input$agency) 
-        } else
-          print(paste0("Error.  Unrecognized input."))
-        
-        plans %>%
+        region_filt <- if (input$region == "All") {
+          levels(sec3Input()$PIHP)
+        } else input$region
+
+        agency_filt <- if (input$agency == "All") {
+          levels(sec3Input()$agency)
+        } else input$agency
+
+        sec3Input() %>%
+          filter(PIHP %in% region_filt
+                 & agency %in% agency_filt) %>%
           group_by(fake_id) %>%
           mutate(total = type_n + DST_n + frequency_n) %>%
           select(fake_id, item_desc, total) %>%
@@ -748,12 +696,18 @@
       
       output$need_import_q2 <- renderPlotly({
         
-        if ( input$agency == "All" ) {
-          filt_input <- sec2Input() 
-        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
-          filt_input <- sec2Input() %>% filter(agency == input$agency)
-        } else
-          print(paste0("Error.  Unrecognized input."))
+        region_filt <- if (input$region == "All") {
+          levels(sec2Input()$PIHP)
+        } else input$region
+        
+        agency_filt <- if (input$agency == "All") {
+          levels(sec2Input()$agency)
+        } else input$agency
+        
+        filt_input <-
+        sec2Input() %>%
+          filter(PIHP %in% region_filt
+                 & agency %in% agency_filt)
         
         if ( input$import == "All") {
           filt_input <- filt_input 
@@ -812,14 +766,17 @@
 
       output$import_q2 <- renderPlotly({
         
-        if ( input$agency == "All" ) {
-          filt_inpt <- sec2Input() 
-        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
-          filt_inpt <- sec2Input() %>% filter(agency == input$agency) 
-        } else
-          print(paste0("Error.  Unrecognized input."))
+        region_filt <- if (input$region == "All") {
+          levels(sec2Input()$PIHP)
+        } else input$region
         
-        filt_inpt %<>%
+        agency_filt <- if (input$agency == "All") {
+          levels(sec2Input()$agency)
+        } else input$agency
+        
+        sec2Input() %>%
+          filter(PIHP %in% region_filt
+                 & agency %in% agency_filt) %>%
           group_by(item_desc) %>%
           summarize(To = sum(as.numeric(import_to), na.rm = T),
                     For = sum(as.numeric(import_for), na.rm = T)) %>%
@@ -840,10 +797,31 @@
 
       output$tos_q2 <- renderParset({
         
-        if ( input$agency == "All" ) {
+        if ( input$agency == "All" & input$region == "All") {
           tos_parset <- 
             tos2Input() %>% 
             filter(item_desc == input$q2domain) %>%
+            select(-item_desc,-section_desc) %>%
+            group_by(type,frequency,DST,PIHP) %>%
+            summarize(n = sum(n)) %>%
+            arrange(desc(n))
+          
+          parset(
+            tos_parset,
+            # dimensions are the categorical columns
+            dimensions = colnames(tos_parset)[-5],
+            # use some JavaScript to inform parset that Freq has the value
+            value = htmlwidgets::JS("function(d){return d.n}"),
+            tension = 0.5,
+            width = "80%", height = 400
+          )
+          
+        } else if ( input$region %in% levels(unique(scrub_sis$PIHP)) & input$agency == "All") {
+          
+          tos_parset <- 
+            tos2Input() %>% 
+            filter(item_desc == input$q2domain
+                   & PIHP == input$region) %>%
             select(-item_desc,-section_desc) %>%
             group_by(type,frequency,DST,agency) %>%
             summarize(n = sum(n)) %>%
@@ -858,7 +836,7 @@
             tension = 0.5,
             width = "80%", height = 400
           )
-          
+        
         } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
           tos_parset <- 
             tos2Input() %>% 
@@ -884,11 +862,33 @@
       
       output$tos_q3 <- renderParset({
         
-        if ( input$agency == "All" ) {
+        if ( input$agency == "All" & input$region == "All" ) {
+          
           tos_parset <- 
             tos3Input() %>% 
             filter(item_desc == input$q3domain) %>%
             select(-item_desc) %>%
+            group_by(type,frequency,DST,PIHP) %>%
+            summarize(n = sum(n)) %>%
+            arrange(desc(n))
+          
+          parset(
+            tos_parset,
+            # dimensions are the categorical columns
+            dimensions = colnames(tos_parset)[-5],
+            # use some JavaScript to inform parset that Freq has the value
+            value = htmlwidgets::JS("function(d){return d.n}"),
+            tension = 0.5,
+            width = "80%", height = 400
+          )
+        
+        } else if ( input$region %in% levels(unique(scrub_sis$PIHP)) & input$agency == "All") {
+          
+          tos_parset <- 
+            tos3Input() %>% 
+            filter(item_desc == input$q3domain
+                   & PIHP == input$region) %>%
+            select(-item_desc,-section_desc) %>%
             group_by(type,frequency,DST,agency) %>%
             summarize(n = sum(n)) %>%
             arrange(desc(n))
@@ -934,54 +934,87 @@
         } else 
           levels(droplevels(as.factor(sec2Input()$item_desc[sec2Input()$section_desc == input$select_area_q2])))
         
+        region_filt <- if (input$region == "All") {
+          levels(sec2Input()$PIHP)
+        } else input$region
         
-        if ( input$agency == "All" ) {
+        agency_filt <- if (input$agency == "All") {
+          levels(sec2Input()$agency)
+        } else input$agency
+        
+        
+        if ( input$region == "All" & input$agency == "All" ) {
+          
+          notescope <- "by Region"
           
           df <-
             sec2Input() %>%
             filter(item_desc %in% filtre) %>%
-            group_by(agency, item_desc) %>%
-            summarize(avg = round(mean(score), digits = 1)) %>%
-            spread(agency, avg)
+            group_by(PIHP, item_desc) %>%
+            summarize(avg = round(mean(score, na.rm = T), digits = 1)) %>%
+            spread(PIHP, avg, drop = FALSE)
           
-          dt_in <-
-            sec2Input() %>%
+          dt_in <-sec2Input() %>%
             filter(item_desc %in% filtre) %>%
             group_by(item_desc) %>%
-            summarize(avg = round(mean(score), digits = 1),
-                      sd = round(sd(score), digits = 1)) %>% 
+            summarize(avg = round(mean(score, na.rm = T), digits = 1),
+                      sd = round(sd(score, na.rm = T), digits = 1)) %>% 
             left_join(df, id = "item_desc") %>%
             rename(All = avg, StDev = sd, Item = item_desc) %>%
             arrange(desc(StDev))
-
+          
+        } else if ( input$region %in% levels(unique(scrub_sis$PIHP)) & input$agency == "All" ) {
+          
+          notescope <- paste0("for agencies within ", input$region)
+          
+          df <-
+            sec2Input() %>%
+            filter(PIHP %in% region_filt) %>%
+            filter(item_desc %in% filtre) %>%
+            group_by(agency, item_desc) %>%
+            summarize(avg = round(mean(score, na.rm = T), digits = 1)) %>%
+            spread(agency, avg, drop = FALSE)
+          
+          dt_in <-sec2Input() %>%
+            filter(PIHP %in% region_filt) %>%
+            filter(item_desc %in% filtre) %>%
+            group_by(item_desc) %>%
+            summarize(avg = round(mean(score, na.rm = T), digits = 1),
+                      sd = round(sd(score, na.rm = T), digits = 1)) %>% 
+            left_join(df, id = "item_desc") %>%
+            rename(All = avg, StDev = sd, Item = item_desc) %>%
+            arrange(desc(StDev))
+          
         } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
+          
+          notescope <- paste0("at ", input$agency)
           
           df <-
             sec2Input() %>%
             filter(item_desc %in% filtre) %>%
             group_by(agency, item_desc) %>%
-            summarize(avg = round(mean(score), digits = 1)) %>%
+            summarize(avg = round(mean(score, na.rm = T), digits = 1)) %>%
             filter(agency == input$agency) %>%
-            spread(agency, avg)
+            spread(agency, avg, drop = FALSE)
           
           dt_in <-
             sec2Input() %>%
             filter(item_desc %in% filtre) %>%
             filter(agency != input$agency) %>%
             group_by(item_desc) %>%
-            summarize(avg = round(mean(score), digits = 1)) %>% 
+            summarize(avg = round(mean(score, na.rm = T), digits = 1)) %>% 
             left_join(df, id = "item_desc") %>%
             mutate(differ = .[[3]] - .[[2]]) %>% # use col indices since names change
             rename(All.Others = avg, Difference = differ, Item = item_desc) %>%
             arrange(desc(Difference))
-
+          
         } else
           print(paste0("Error.  Unrecognized input."))
         
         dt <-
         dt_in %>%
-          datatable(caption = paste0("Variation and Average Raw Scores on Section 1 Items (",
-                                     input$select_area_s1, "), by CMH"),
+          datatable(caption = paste0("Variation and Average Raw Scores on Section 2 Items (",
+                                     input$select_area_q2, "), ",notescope),
                     rownames = FALSE,
                     extensions = c('Responsive','Buttons'),
                     options = list(pageLength = 5, lengthMenu = c(5, 10,20),
@@ -1013,31 +1046,62 @@
        
       output$q3_dt <- renderDataTable({
         
-        if ( input$agency == "All" ) {
+        region_filt <- if (input$region == "All") {
+          levels(sec3Input()$PIHP)
+        } else input$region
+        
+        agency_filt <- if (input$agency == "All") {
+          levels(sec3Input()$agency)
+        } else input$agency
+        
+        if ( input$region == "All" & input$agency == "All" ) {
+          
+          notescope <- "by Region"
           
           df <-
             sec3Input() %>%
+            group_by(PIHP, item_desc) %>%
+            summarize(avg = round(mean(score, na.rm = T), digits = 1)) %>%
+            spread(PIHP, avg, drop = FALSE)
+          
+          dt_in <-sec3Input() %>%
+            group_by(item_desc) %>%
+            summarize(avg = round(mean(score, na.rm = T), digits = 1),
+                      sd = round(sd(score, na.rm = T), digits = 1)) %>% 
+            left_join(df, id = "item_desc") %>%
+            rename(All = avg, StDev = sd, Item = item_desc) %>%
+            arrange(desc(StDev))
+          
+        } else if ( input$region %in% levels(unique(scrub_sis$PIHP)) & input$agency == "All" ) {
+          
+          notescope <- paste0("for agencies within ", input$region)
+          
+          df <-
+            sec3Input() %>%
+            filter(PIHP %in% region_filt) %>%
             group_by(agency, item_desc) %>%
             summarize(avg = round(mean(score), digits = 1)) %>%
-            spread(agency, avg)
+            spread(agency, avg, drop = FALSE)
           
-          dt_in <-
-            sec3Input() %>%
+          dt_in <-sec3Input() %>%
+            filter(PIHP %in% region_filt) %>%
             group_by(item_desc) %>%
             summarize(avg = round(mean(score), digits = 1),
                       sd = round(sd(score), digits = 1)) %>% 
             left_join(df, id = "item_desc") %>%
             rename(All = avg, StDev = sd, Item = item_desc) %>%
             arrange(desc(StDev))
-
+          
         } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
+          
+          notescope <- paste0("at ", input$agency)
           
           df <-
             sec3Input() %>%
             group_by(agency, item_desc) %>%
             summarize(avg = round(mean(score), digits = 1)) %>%
             filter(agency == input$agency) %>%
-            spread(agency, avg)
+            spread(agency, avg, drop = FALSE)
           
           dt_in <-
             sec3Input() %>%
@@ -1048,21 +1112,22 @@
             mutate(differ = .[[3]] - .[[2]]) %>% # use col indices since names change
             rename(All.Others = avg, Difference = differ, Item = item_desc) %>%
             arrange(desc(Difference))
-
+          
         } else
           print(paste0("Error.  Unrecognized input."))
         
         dt <-
-        dt_in %>%
-          datatable(caption = 'Variation and Average Raw Scores on Section 2 Items, by CMH',
+          dt_in %>%
+          datatable(caption = paste0("Variation and Average Raw Scores on Section 3 Items, ",
+                                     notescope),
                     rownames = FALSE,
                     extensions = c('Responsive','Buttons'),
-                    options = list(pageLength = 5, lengthMenu = c(5, 15),
+                    options = list(pageLength = 5, lengthMenu = c(5, 10,20),
                                    dom = 'C<"clear">lfrtip',
                                    buttons = c('colvis'))) 
         
         if ( input$agency == "All" ) {
-        
+          
           dt %>%
             formatStyle('StDev',
                         background = styleColorBar(dt_in$StDev, 'lightpink'),
@@ -1070,7 +1135,7 @@
                         backgroundRepeat = 'no-repeat',
                         backgroundPosition = 'center')
           
-        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
+        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {  
           
           dt %>%
             formatStyle('Difference',
@@ -1086,21 +1151,21 @@
       
       output$hist_sni <- renderPlotly({
         
-        if ( input$agency == "All" ) {
-          scrub_sis_filt <- sisInput()
-          notetxt <- "Distribution of scores<br>for Support Needs Index<br>across all CMHSPs"
+        if ( input$region == "All" & input$agency == "All" ) {
+          notetxt <- "Distribution of scores<br>for Support Needs Index<br>across all regions"
+        } else if ( input$region %in% levels(unique(scrub_sis$PIHP)) & input$agency == "All" ) {
+          notetxt <- paste0("Distribution of scores<br>for Support Needs Index<br>at ",input$region)
         } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
-          scrub_sis_filt <- sisInput() %>% filter(agency == input$agency)
           notetxt <- paste0("Distribution of scores<br>for Support Needs Index<br>at ",input$agency)
         } else
           print(paste0("Error.  Unrecognized input."))
         
-        minx <- min(scrub_sis_filt$scr_support_needs_index, na.rm = T)
-        maxx <- max(scrub_sis_filt$scr_support_needs_index, na.rm = T)
+        minx <- min(sisByAgency()$scr_support_needs_index, na.rm = T)
+        maxx <- max(sisByAgency()$scr_support_needs_index, na.rm = T)
         sizex <- (maxx - minx) / input$sni_bins
           
         hist <-
-        scrub_sis_filt %>%
+          sisByAgency() %>%
           plot_ly(x = ~scr_support_needs_index) %>%
           add_histogram(opacity = 0.6, 
                         autobinx = F,
@@ -1121,12 +1186,12 @@
                                     showarrow = F, align = "left",
                                     text = notetxt)) 
         
-        max_hist <- max(hist(scrub_sis_filt$scr_support_needs_index,
+        max_hist <- max(hist(sisByAgency()$scr_support_needs_index,
                              breaks=input$sni_bins)$counts,na.rm=TRUE)
         
         ifelse(
           input$central == "Mean",
-          yes = hist <- hist %>% add_lines(x = rep(mean(scrub_sis_filt$scr_support_needs_index, 
+          yes = hist <- hist %>% add_lines(x = rep(mean(sisByAgency()$scr_support_needs_index, 
                                                         na.rm = T), 
                                                    each = 2), 
                                            y = c(0,max_hist),
@@ -1135,7 +1200,7 @@
                                            name = "Mean score",
                                            hoverinfo = "x",
                                            xaxis = "x"),
-          no  = hist <- hist %>% add_lines(x = rep(median(scrub_sis_filt$scr_support_needs_index, 
+          no  = hist <- hist %>% add_lines(x = rep(median(sisByAgency()$scr_support_needs_index, 
                                                           na.rm = T), 
                                                    each = 2), 
                                            y = c(0,max_hist),
@@ -1152,26 +1217,27 @@
 
       output$norm_sni <- renderPlotly({
         
-        if ( input$agency == "All" ) {
-          scrub_sis_filt <- sisInput()
-        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
-          scrub_sis_filt <- sisInput() %>% filter(agency == input$agency)
-        } else
-          print(paste0("Error.  Unrecognized input."))
-        
         # Calculate actual density
-        dense <- density(scrub_sis_filt$scr_support_needs_index, 
+        dense <- density(sisByAgency()$scr_support_needs_index, 
                          kernel = "gaussian", 
                          na.rm = T)
         
         # Density of normal distribution
-        norm <- density(rnorm(n = nrow(scrub_sis_filt), mean = 100, sd = 15),
+        norm <- density(rnorm(n = nrow(sisByAgency()), mean = 100, sd = 15),
                         kernel = "gaussian", 
                         na.rm = T)
         
-        scrub_sis_filt %>%
+        minx <- min(sisByAgency()$scr_support_needs_index, na.rm = T)
+        maxx <- max(sisByAgency()$scr_support_needs_index, na.rm = T)
+        sizex <- (maxx - minx) / input$norm_bins
+        
+        sisByAgency() %>%
           plot_ly(x = ~scr_support_needs_index) %>%
           add_histogram(opacity = 0.6,
+                        autobinx = F,
+                        xbins = list(start = minx, 
+                                     end = maxx, 
+                                     size = sizex),
                         colors = "#A9A9A9",
                         hoverinfo = "all", 
                         name = "People",
@@ -1197,55 +1263,28 @@
         
       output$dt_sni <- renderDataTable({
         
-        if ( input$agency == "All" ) {
-          clin_by_dom <-
-            sisInput() %>%
-            select(agency = agency,
-                   medical = scr_1A_raw_total,
-                   behavior = scr_1B_raw_total,
-                   homeliving = scr_2A_std,
-                   commliving = scr_2B_std,
-                   hlthsafety = scr_2E_std,
-                   lifelearng = scr_2C_std,
-                   employment = scr_2D_std,
-                   social = scr_2F_std) %>%
-            group_by(agency) %>%
-            summarize(n = n(),
-                      medical = round(mean(medical), digits = 1),
-                      behavior = round(mean(behavior), digits = 1),
-                      homeliving = round(mean(homeliving), digits = 1),
-                      commliving = round(mean(commliving), digits = 1),
-                      hlthsafety = round(mean(hlthsafety), digits = 1),
-                      lifelearng = round(mean(lifelearng), digits = 1),
-                      employment = round(mean(employment), digits = 1),
-                      social = round(mean(social), digits = 1)) %>%
-            select(agency, medical:social)
-        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
-          clin_by_dom <-
-            sisInput() %>%
-            filter(agency == input$agency) %>%
-            select(agency = agency,
-                   medical = scr_1A_raw_total,
-                   behavior = scr_1B_raw_total,
-                   homeliving = scr_2A_std,
-                   commliving = scr_2B_std,
-                   hlthsafety = scr_2E_std,
-                   lifelearng = scr_2C_std,
-                   employment = scr_2D_std,
-                   social = scr_2F_std) %>%
-            group_by(agency) %>%
-            summarize(n = n(),
-                      medical = round(mean(medical), digits = 1),
-                      behavior = round(mean(behavior), digits = 1),
-                      homeliving = round(mean(homeliving), digits = 1),
-                      commliving = round(mean(commliving), digits = 1),
-                      hlthsafety = round(mean(hlthsafety), digits = 1),
-                      lifelearng = round(mean(lifelearng), digits = 1),
-                      employment = round(mean(employment), digits = 1),
-                      social = round(mean(social), digits = 1)) %>%
-            select(agency, medical:social)
-        } else
-          print(paste0("Error.  Unrecognized input."))
+        clin_by_dom <-
+        sisByAgency() %>%
+          select(agency = agency,
+                 medical = scr_1A_raw_total,
+                 behavior = scr_1B_raw_total,
+                 homeliving = scr_2A_std,
+                 commliving = scr_2B_std,
+                 hlthsafety = scr_2E_std,
+                 lifelearng = scr_2C_std,
+                 employment = scr_2D_std,
+                 social = scr_2F_std) %>%
+          group_by(agency) %>%
+          summarize(n = n(),
+                    medical = round(mean(medical, na.rm = T), digits = 1),
+                    behavior = round(mean(behavior, na.rm = T), digits = 1),
+                    homeliving = round(mean(homeliving, na.rm = T), digits = 1),
+                    commliving = round(mean(commliving, na.rm = T), digits = 1),
+                    hlthsafety = round(mean(hlthsafety, na.rm = T), digits = 1),
+                    lifelearng = round(mean(lifelearng, na.rm = T), digits = 1),
+                    employment = round(mean(employment, na.rm = T), digits = 1),
+                    social = round(mean(social, na.rm = T), digits = 1)) %>%
+          select(agency, medical:social) 
         
         clin_by_dom %>%
           datatable(rownames = FALSE,
@@ -1255,7 +1294,8 @@
                                  'Learning','Employment', 'Social'),
                     caption = 'Average subscale scores by Agency',
                     extensions = c('Responsive','Buttons'),
-                    options = list(pageLength = 5, lengthMenu = c(5, 10,20),
+                    options = list(pageLength = 10, 
+                                   lengthMenu = c(5,10,nrow(clin_by_dom)),
                                    dom = 'C<"clear">lfrtip',
                                    buttons = c('colvis'))) %>%
           formatStyle('medical',
@@ -1308,35 +1348,24 @@
         } else if (input$radio_mb == "Behavioral") {c("Behavioral Supports")
         } else print(paste0("Error.  Unrecognized input."))
         
-        if ( input$agency == "All" ) {
-          conditions <-
-            sec1Input() %>%
-            filter(score > 0
-                   & section_desc %in% radio
-                   ) %>%
-            group_by(item_desc,level) %>%
-            summarize(n = n()) %>%
-            ungroup() %>%
-            # Reorder factor by value for barchart ordering
-            mutate(item_desc = fct_reorder(item_desc, x = n, 
-                                           fun = sum, .desc = T))
-        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
-          conditions <-
-            sec1Input() %>%
-            filter(agency == input$agency
-                   & score > 0
-                   & section_desc %in% radio
-                   ) %>%
-            group_by(item_desc,level) %>%
-            summarize(n = n()) %>%
-            ungroup() %>%
-            # Reorder factor by value for barchart ordering
-            mutate(item_desc = fct_reorder(item_desc, x = n, 
-                                           fun = sum, .desc = T))
-        } else
-          print(paste0("Error.  Unrecognized input."))
+        region_filt <- if (input$region == "All") {
+          levels(sec1Input()$PIHP)
+        } else input$region
         
-        conditions %>%
+        agency_filt <- if (input$agency == "All") {
+          levels(sec1Input()$agency)
+        } else input$agency
+        
+        sec1Input() %>%
+          filter(PIHP %in% region_filt
+                 & agency %in% agency_filt) %>%
+          filter(score > 0
+                 & section_desc %in% radio) %>%
+          group_by(item_desc,level) %>%
+          summarize(n = n()) %>%
+          ungroup() %>%
+          # Reorder factor by value for barchart ordering
+          mutate(item_desc = fct_reorder(item_desc, x = n, fun = sum, .desc = T)) %>%
           plot_ly(x = ~item_desc, y = ~n) %>%
           add_bars(color = ~level, colors = c("#F98400","#FF0000")) %>%
           layout(xaxis = list(title = "Type of Need", showticklabels = F),
@@ -1349,14 +1378,11 @@
 
       output$hist_mb <- renderPlotly({
         
-        if ( input$agency == "All" ) {
-          scrub_sis_filt <- 
-            sisInput()  
+        if ( input$region == "All" & input$agency == "All" ) {
           notescope <- "across all CMHSPs"
+        } else if ( input$region %in% levels(unique(scrub_sis$PIHP)) & input$agency == "All" ) {
+          notescope <- paste0("in ",input$region)
         } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
-          scrub_sis_filt <- 
-            sisInput() %>% 
-            filter(agency == input$agency)
           notescope <- paste0("at ",input$agency)
         } else
           print(paste0("Error.  Unrecognized input."))
@@ -1365,15 +1391,15 @@
           notetxt <- paste0("Distribution of needs<br>for medical issues<br>",
                             notescope)
           
-          minx <- min(scrub_sis_filt$scr_1A_raw_total, na.rm = T)
-          maxx <- max(scrub_sis_filt$scr_1A_raw_total, na.rm = T)
+          minx <- min(sisByAgency()$scr_1A_raw_total, na.rm = T)
+          maxx <- max(sisByAgency()$scr_1A_raw_total, na.rm = T)
           sizex <- (maxx - minx) / input$mb_bins
           
-          max_hist <- max(hist(scrub_sis_filt$scr_1A_raw_total,
+          max_hist <- max(hist(sisByAgency()$scr_1A_raw_total,
                                breaks=input$mb_bins)$counts,na.rm = T)
           
           hist <-
-            scrub_sis_filt %>%
+            sisByAgency() %>%
             plot_ly(x = ~scr_1A_raw_total) %>%
             add_histogram(opacity = 0.6, 
                           autobinx = F,
@@ -1394,7 +1420,7 @@
                                       y = 1, yanchor = "top", yref = "paper",
                                       showarrow = F, align = "left",
                                       text = notetxt)) %>% 
-            add_lines(x = rep(mean(scrub_sis_filt$scr_1A_raw_total), 
+            add_lines(x = rep(mean(sisByAgency()$scr_1A_raw_total, na.rm = T), 
                               each = 2), 
                       y = c(0,max_hist),
                       line = list(dash = 5),
@@ -1408,15 +1434,15 @@
           notetxt <- paste0("Distribution of needs<br>for behavioral issues<br>",
                             notescope)
           
-          minx <- min(scrub_sis_filt$scr_1B_raw_total, na.rm = T)
-          maxx <- max(scrub_sis_filt$scr_1B_raw_total, na.rm = T)
+          minx <- min(sisByAgency()$scr_1B_raw_total, na.rm = T)
+          maxx <- max(sisByAgency()$scr_1B_raw_total, na.rm = T)
           sizex <- (maxx - minx) / input$mb_bins
           
-          max_hist <- max(hist(scrub_sis_filt$scr_1B_raw_total,
+          max_hist <- max(hist(sisByAgency()$scr_1B_raw_total,
                                breaks=input$mb_bins)$counts,na.rm=TRUE)
           
           hist <-
-            scrub_sis_filt %>%
+            sisByAgency() %>%
             plot_ly(x = ~scr_1B_raw_total) %>%
             add_histogram(opacity = 0.6, 
                           autobinx = F,
@@ -1438,7 +1464,7 @@
                                       y = 1, yanchor = "top", yref = "paper",
                                       showarrow = F, align = "left",
                                       text = notetxt)) %>% 
-            add_lines(x = rep(mean(scrub_sis_filt$scr_1B_raw_total), 
+            add_lines(x = rep(mean(sisByAgency()$scr_1B_raw_total, na.rm = T), 
                               each = 2), 
                       y = c(0,max_hist),
                       line = list(dash = 5),
@@ -1682,93 +1708,107 @@
       
       output$sis_svc_ntwk <- renderVisNetwork({
         
-        tst_need <- needs_matrix
-        rownames(tst_need) <- tst_need$Code
-        tst_need <- 
-          tst_need %>% 
-          select(-Code) %>% 
-          t() %>% 
-          as.data.frame()
-        
-        tst_need$item <- rownames(tst_need)
-        
-        sis2svc_network <-
-          s1_3Input() %>%
-          # filter(as.Date(sis_date) == max(as.Date(sis_date))) %>%
-          # Identify areas with identified need (>0)
-          filter(score > 0) %>%
-          # Include only endorsed or high need items
-          filter(need_svc == T | import_to == T | import_for == T) %>%
-          select(item,item_desc,score) %>%
-          left_join(tst_need, by = "item") %>%
-          group_by(item) %>%
-          gather(HCPCS,need_mapped,everything(),-item,-item_desc,-score) %>%
-          filter(need_mapped == T) %>%
-          left_join(codemap, by = "HCPCS") %>%
-          select(from = item_desc,
-                 to = short_desc,
-                 score) %>%
-          group_by(from,to) %>%
-          summarize(avg_score = mean(score),
-                    n = n())
-        
-        nodes <-
-          unique(c(unique(as.character(sis2svc_network$from)),
-                   unique(as.character(sis2svc_network$to)))) %>%
-          data.frame("name_id" = .) %>%
-          # Alphabetize
-          arrange(name_id) %>%
-          # Assign ids starting at 0
-          mutate(id = row_number(name_id)-1,
-                 group = ifelse(name_id %in% sis2svc_network$from,
-                                yes = "Needs", no = "Services"))
-        
-        edges <-
-          sis2svc_network %>%
-          ungroup() %>%
-          left_join(nodes, by = c("from" = "name_id")) %>%
-          select(-from) %>%
-          rename(from = id) %>%
-          left_join(nodes, by = c("to" = "name_id")) %>%
-          select(-to) %>%
-          rename(to = id,
-                 value = n) %>%
-          mutate(title = paste0(value," people have this need.  ",
-                                "<br>The average score is ", 
-                                round(avg_score, digits = 1))) %>%
-        droplevels()
-        
-        # Calculate degree of node to use as size
-        # Degree = number of edges attached to a given node
-        deg_from <-
-          edges %>%
-          ungroup() %>%
-          group_by(from) %>%
-          summarize(degree = n_distinct(to)) %>%
-          select(id = from, degree)
-        
-        deg <-
-          edges %>%
-          ungroup() %>%
-          group_by(to) %>%
-          summarize(degree = n_distinct(from)) %>%
-          select(id = to, degree) %>%
-          rbind(deg_from) %>%
-          ungroup()
-        
-        nodes %<>% 
-          left_join(deg, by = "id") %>%
-          rename(value = degree,
-                 label = name_id)
-        
-        #nodes <- nodes() %>% rename(label = name)
-        
-        visNetwork(nodes, edges, height = "700px", width = "100%") %>% 
-          visOptions(highlightNearest = list(enabled = T, degree = 1, hover = F)) %>%
-          visEdges(color = list(color = "#E0EEEE", highlight = "#E1AF00")) %>%
-          visPhysics(maxVelocity = 5,stabilization = FALSE) %>%
-          visLayout(randomSeed = 123) %>%
-          visLegend(width = 0.1, position = "right")
+        withProgress(message = 'Creating network map ',
+                     detail = 'making connections...',
+                     value = 0.1, 
+                     {
+                       tst_need <- needs_matrix
+                       rownames(tst_need) <- tst_need$Code
+                       tst_need <- 
+                         tst_need %>% 
+                         select(-Code) %>% 
+                         t() %>% 
+                         as.data.frame()
+                       
+                       tst_need$item <- rownames(tst_need)
+                       
+                       region_filt <- if (input$region == "All") {
+                         levels(scrub_sis$PIHP)
+                       } else input$region
+                       
+                       agency_filt <- if (input$agency == "All") {
+                         levels(scrub_sis$agency)
+                       } else input$agency
+                       
+                       sis2svc_network <-
+                         s1_3Input() %>%
+                         filter(PIHP %in% region_filt
+                                & agency %in% agency_filt) %>%
+                         # Identify areas with identified need (>0)
+                         filter(score > 0) %>%
+                         # Include only endorsed or high need items
+                         filter(need_svc == T | import_to == T | import_for == T) %>%
+                         select(item,item_desc,score) %>%
+                         left_join(tst_need, by = "item") %>%
+                         group_by(item) %>%
+                         gather(HCPCS,need_mapped,everything(),-item,-item_desc,-score) %>%
+                         filter(need_mapped == T) %>%
+                         left_join(codemap, by = "HCPCS") %>%
+                         select(from = item_desc,
+                                to = short_desc,
+                                score) %>%
+                         group_by(from,to) %>%
+                         summarize(avg_score = mean(score),
+                                   n = n())
+                       
+                       nodes <-
+                         unique(c(unique(as.character(sis2svc_network$from)),
+                                  unique(as.character(sis2svc_network$to)))) %>%
+                         data.frame("name_id" = .) %>%
+                         # Alphabetize
+                         arrange(name_id) %>%
+                         # Assign ids starting at 0
+                         mutate(id = row_number(name_id)-1,
+                                group = ifelse(name_id %in% sis2svc_network$from,
+                                               yes = "Needs", no = "Services"))
+                       
+                       edges <-
+                         sis2svc_network %>%
+                         ungroup() %>%
+                         left_join(nodes, by = c("from" = "name_id")) %>%
+                         select(-from) %>%
+                         rename(from = id) %>%
+                         left_join(nodes, by = c("to" = "name_id")) %>%
+                         select(-to) %>%
+                         rename(to = id,
+                                value = n) %>%
+                         mutate(title = paste0(value," people have this need.  ",
+                                               "<br>The average score is ", 
+                                               round(avg_score, digits = 1))) %>%
+                         droplevels()
+                       
+                       # Calculate degree of node to use as size
+                       # Degree = number of edges attached to a given node
+                       deg_from <-
+                         edges %>%
+                         ungroup() %>%
+                         group_by(from) %>%
+                         summarize(degree = n_distinct(to)) %>%
+                         select(id = from, degree)
+                       
+                       deg <-
+                         edges %>%
+                         ungroup() %>%
+                         group_by(to) %>%
+                         summarize(degree = n_distinct(from)) %>%
+                         select(id = to, degree) %>%
+                         rbind(deg_from) %>%
+                         ungroup()
+                       
+                       nodes %<>% 
+                         left_join(deg, by = "id") %>%
+                         rename(value = degree,
+                                label = name_id)
+                       
+                       #nodes <- nodes() %>% rename(label = name)
+                       
+                       visNetwork(nodes, edges, height = "700px", width = "100%") %>% 
+                         visOptions(highlightNearest = list(enabled = T, degree = 1, hover = F)) %>%
+                         visEdges(color = list(color = "#E0EEEE", highlight = "#E1AF00")) %>%
+                         visPhysics(maxVelocity = 5,stabilization = FALSE) %>%
+                         visLayout(randomSeed = 123) %>%
+                         visLegend(width = 0.1, position = "right")
+                     })
         
       })
       
@@ -1987,76 +2027,57 @@
           c(TRUE, FALSE)
         } else print(paste0("Error.  Unrecognized input."))
         
-        agency_filt <- if ( input$agency == "All" ) {
-          levels(unique(scrub_sis$agency))
-        } else if ( input$agency %in% levels(unique(scrub_sis$agency)) ) {
-          input$agency
-        } else
-          print(paste0("Error.  Unrecognized input."))
+        # Sum number of assessments with no "Important to" fields completed
+        imp_to <-
+          sisByAgency() %>%
+          filter(current_int %in% is_current) %>%
+          group_by(interviewer,fake_id) %>%
+          select(interviewer,fake_id,ends_with("_ImportantTo")) %>%
+          gather(field,n,ends_with("_ImportantTo")) %>%
+          summarize(n_to = sum(n, na.rm = T)) %>%
+          ungroup() %>%
+          filter(n_to == 0) %>%
+          group_by(interviewer) %>%
+          summarize(no_to = n())
           
-          
-          # Sum number of assessments with no "Important to" fields completed
-          imp_to <-
-            sisInput() %>%
-            filter(current_int %in% is_current) %>%
-            group_by(interviewer,fake_id) %>%
-            select(interviewer,fake_id,ends_with("_ImportantTo")) %>%
-            gather(field,n,ends_with("_ImportantTo")) %>%
-            summarize(n_to = sum(n, na.rm = T)) %>%
-            ungroup() %>%
-            filter(n_to == 0) %>%
-            group_by(interviewer) %>%
-            summarize(no_to = n())
-          
-          # Sum number of assessments with no "Important to" fields completed
-          imp_for <-
-            sisInput() %>%
-            filter(current_int %in% is_current) %>%
-            group_by(interviewer,fake_id) %>%
-            select(interviewer,fake_id,ends_with("_ImportantFor")) %>%
-            gather(field,n,ends_with("_ImportantFor")) %>%
-            summarize(n_for = sum(n, na.rm = T)) %>%
-            ungroup() %>%
-            filter(n_for == 0) %>%
-            group_by(interviewer) %>%
-            summarize(no_for = n())
-          
-          mia <-
-            sisInput() %>%
-            filter(current_int %in% is_current) %>%
-            filter(agency %in% agency_filt) %>%
-            group_by(interviewer) %>%
-            summarize(unmatch_mcaid = sum(is.na(cmhsp_id)), # cmhsp_id is NA when no match found
-                      miss_start = sum(as.numeric(hour(start) %in% c(0, NA))),
-                      miss_end = sum(as.numeric(hour(end) %in% c(0, NA))),
-                      miss_reason = sum(is.na(sis_why)),
-                      #miss_setting = sum(is.na(InterviewSetting)),
-                      #miss_supports = sum(is.na(sis_sup1_reln)),
-                      #miss_respond = sum(is.na(sis_res1_reln_typ_cd)),
-                      not_mich = sum(as.numeric(sis_cl_st != "MI"))) %>%
-            left_join(imp_to, by = "interviewer") %>%
-            left_join(imp_for, by = "interviewer")
+        # Sum number of assessments with no "Important to" fields completed
+        imp_for <-
+          sisByAgency() %>%
+          filter(current_int %in% is_current) %>%
+          group_by(interviewer,fake_id) %>%
+          select(interviewer,fake_id,ends_with("_ImportantFor")) %>%
+          gather(field,n,ends_with("_ImportantFor")) %>%
+          summarize(n_for = sum(n, na.rm = T)) %>%
+          ungroup() %>%
+          filter(n_for == 0) %>%
+          group_by(interviewer) %>%
+          summarize(no_for = n())
+        
+        mia <-
+          sisByAgency() %>%
+          filter(current_int %in% is_current) %>%
+          group_by(interviewer) %>%
+          summarize(miss_start = sum(as.numeric(hour(start) %in% c(0, NA))),
+                    miss_end = sum(as.numeric(hour(end) %in% c(0, NA))),
+                    miss_reason = sum(is.na(sis_why)),
+                    not_mich = sum(as.numeric(sis_cl_st != "MI"))) %>%
+          left_join(imp_to, by = "interviewer") %>%
+          left_join(imp_for, by = "interviewer")
         
         mia %>%
           datatable(rownames = FALSE,
                     colnames = c('Interviewer',
-                                 'Unmatched Mcaid IDs','Missing Start Time',
-                                 'Missing End Time','Missing Reason',
-                                 #'No Intrvw Setting',
-                                 #'Missing Supports Info',
-                                 #'Missing Respondents',
+                                 'Missing Start Time',
+                                 'Missing End Time',
+                                 'Missing Reason',
                                  'State other than MI',
-                                 'No Important To','No Important For'),
+                                 'No Important To',
+                                 'No Important For'),
                     caption = 'Data Quality Issues, by Interviewer',
                     extensions = c('Responsive','Buttons'),
                     options = list(pageLength = 5, lengthMenu = c(5, 10,20),
                                    dom = 'C<"clear">lfrtip',
                                    buttons = c('colvis'))) %>%
-          formatStyle('unmatch_mcaid',
-                      background = styleColorBar(mia$unmatch_mcaid, 'lightseagreen'),
-                      backgroundSize = '100% 90%',
-                      backgroundRepeat = 'no-repeat',
-                      backgroundPosition = 'center') %>%
           formatStyle('miss_start',
                       background = styleColorBar(mia$miss_start, 'lightsteelblue'),
                       backgroundSize = '100% 90%',
@@ -2072,21 +2093,6 @@
                       backgroundSize = '100% 90%',
                       backgroundRepeat = 'no-repeat',
                       backgroundPosition = 'center') %>%
-          # formatStyle('miss_setting',
-          #             background = styleColorBar(mia$miss_setting, 'steelblue'),
-          #             backgroundSize = '100% 90%',
-          #             backgroundRepeat = 'no-repeat',
-          #             backgroundPosition = 'center') %>%
-          # formatStyle('miss_supports',
-          #             background = styleColorBar(mia$miss_supports, 'steelblue'),
-          #             backgroundSize = '100% 90%',
-          #             backgroundRepeat = 'no-repeat',
-          #             backgroundPosition = 'center') %>%
-          # formatStyle('miss_respond',
-          #             background = styleColorBar(mia$miss_respond, 'steelblue'),
-          #             backgroundSize = '100% 90%',
-          #             backgroundRepeat = 'no-repeat',
-          #             backgroundPosition = 'center') %>%
           formatStyle('not_mich',
                       background = styleColorBar(mia$not_mich, 'darkseagreen'),
                       backgroundSize = '100% 90%',
