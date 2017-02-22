@@ -80,7 +80,19 @@
     mutate(
       # Clean interviewer names to require less manual mapping
       interviewer_orig = str_trim(tolower(assignedLoginId)),
-      interviewer = str_trim(tolower(lastModifiedByLoginId))
+      # Multiple fields exist to indicate the interviewer, each with different 
+      # naming conventions and each with NA values in certain instances.
+      # Since the 'Interviewer_login_id' is consistently used since 10/1/2016,
+      # we use that when available.  If that is absent, we use the person who
+      # created the assessment ('assignedLoginId')
+      interviewer = ifelse(is.na(Interviewer_login_id),
+                           yes = str_trim(tolower(assignedLoginId)),
+                           no = str_trim(tolower(Interviewer_login_id))),
+      # As a failsafe, we map any remaining NA values (currently zero) to 
+      # the last interviewer ID to modify the record
+      interviewer = ifelse(is.na(interviewer),
+                           yes = str_trim(tolower(lastModifiedByLoginId)),
+                           no = interviewer)
     ) %>%
     mutate(
       # Combine address fields for geomapping
