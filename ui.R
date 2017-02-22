@@ -824,6 +824,30 @@ dashboardPage(
         tabName = "med-beh",
         fluidRow(
           column(
+            width = 12,
+            box(
+              title = "Chart settings", 
+              color = "black",
+              collapsible = TRUE,
+              collapsed = T,
+              width = NULL,
+              radioButtons(
+                "radio_mb",
+                label = "Display:",
+                choices = c("Medical", "Behavioral", "Either"), 
+                selected = "Either",
+                inline = T
+              ),
+              sliderInput(
+                "mb_bins", 
+                "Number of bins:", 
+                min = 1, 
+                max = 30, 
+                value = 6
+              )
+            )
+          ),
+          column(
             width = 6,
             box(
               title = "How Many Medical & Behavioral Needs?", 
@@ -834,29 +858,7 @@ dashboardPage(
                 width = NULL,
                 tabPanel(
                   "Distribution",
-                  plotlyOutput("hist_mb"),
-                  br(),
-                  box(
-                    title = "Chart settings", 
-                    color = "black",
-                    collapsible = TRUE,
-                    collapsed = T,
-                    width = NULL,
-                    radioButtons(
-                      "radio_mbhist",
-                      label = "Display:",
-                      choices = c("Medical", "Behavioral"), 
-                      selected = "Medical",
-                      inline = T
-                    ),
-                    sliderInput(
-                      "mb_bins", 
-                      "Number of bins:", 
-                      min = 1, 
-                      max = 30, 
-                      value = 10
-                    )
-                  )
+                  plotlyOutput("hist_mb")
                 ),
                 tabPanel(
                   "About",
@@ -898,13 +900,6 @@ dashboardPage(
                 width = NULL,
                 tabPanel(
                   "Graph",
-                  radioButtons(
-                    "radio_mb",
-                    label = "Display:",
-                    choices = c("Medical", "Behavioral", "Both"), 
-                    selected = "Both",
-                    inline = T
-                  ),
                   plotlyOutput("conditions")
                 ),
                 tabPanel(

@@ -1343,7 +1343,7 @@
       
       output$conditions <- renderPlotly({
         
-        radio <- if (input$radio_mb == "Both") {c("Medical Supports","Behavioral Supports")
+        radio <- if (input$radio_mb == "Either") {c("Medical Supports","Behavioral Supports")
         } else if (input$radio_mb == "Medical") {c("Medical Supports")
         } else if (input$radio_mb == "Behavioral") {c("Behavioral Supports")
         } else print(paste0("Error.  Unrecognized input."))
@@ -1387,7 +1387,7 @@
         } else
           print(paste0("Error.  Unrecognized input."))
         
-        if ( input$radio_mbhist == "Medical" ) {
+        if ( input$radio_mb == "Medical" ) {
           notetxt <- paste0("Distribution of needs<br>for medical issues<br>",
                             notescope)
           
@@ -1429,7 +1429,7 @@
                       hoverinfo = "x",
                       xaxis = "x")
           
-        } else if ( input$radio_mbhist == "Behavioral" ) {
+        } else if ( input$radio_mb == "Behavioral" ) {
           
           notetxt <- paste0("Distribution of needs<br>for behavioral issues<br>",
                             notescope)
@@ -1465,6 +1465,52 @@
                                       showarrow = F, align = "left",
                                       text = notetxt)) %>% 
             add_lines(x = rep(mean(sisByAgency()$scr_1B_raw_total, na.rm = T), 
+                              each = 2), 
+                      y = c(0,max_hist),
+                      line = list(dash = 5),
+                      #marker = list(color = "#DA824F"),
+                      name = "Mean",
+                      hoverinfo = "x",
+                      xaxis = "x")
+          
+        } else if ( input$radio_mb == "Either" ) {
+          
+          notetxt <- paste0("Distribution of needs<br>for both medical issues<br>and behavioral issues<br>",
+                            notescope)
+          
+          minx <- min(sisByAgency()$scr_1A_raw_total, sisByAgency()$scr_1B_raw_total, na.rm = T)
+          maxx <- max(sisByAgency()$scr_1A_raw_total, sisByAgency()$scr_1B_raw_total, na.rm = T)
+          sizex <- (maxx - minx) / input$mb_bins
+          
+          max_hist <- max(hist(sisByAgency()$scr_1A_raw_total,
+                               breaks=input$mb_bins)$counts
+                          + hist(sisByAgency()$scr_1B_raw_total,
+                                 breaks=input$mb_bins)$counts,
+                          na.rm = T)
+          
+          hist <-
+            sisByAgency() %>%
+            plot_ly(x = ~(scr_1A_raw_total + scr_1B_raw_total)) %>%
+            add_histogram(opacity = 0.6, 
+                          autobinx = F,
+                          xbins = list(start = minx, 
+                                       end = maxx, 
+                                       size = sizex),
+                          hoverinfo = "all",  
+                          name = "people",
+                          showlegend = F) %>%
+            layout(xaxis = list(title = "Combined medical and behavioral needs (per person)", 
+                                tickmode = "array",
+                                range = c(minx, maxx), 
+                                autorange = F,
+                                autotick = F, 
+                                tick0 = minx, dtick = sizex),
+                   yaxis = list(title = "People assessed", showgrid = F),
+                   annotations = list(x = maxx, xanchor = "right", 
+                                      y = 1, yanchor = "top", yref = "paper",
+                                      showarrow = F, align = "left",
+                                      text = notetxt)) %>% 
+            add_lines(x = rep(mean(sisByAgency()$scr_1A_raw_total), 
                               each = 2), 
                       y = c(0,max_hist),
                       line = list(dash = 5),
@@ -2008,7 +2054,13 @@
           group_by(.cluster) %>%
           plot_ly(x = ~xvar, 
                   y = ~yvar, 
-                  z = ~zvar, 
+                  z = ~zvar,
+                  p = ~sizevar,
+                  hoverinfo = 'text',
+                  text = ~paste(input$kmPlot_x, '(x): ', round(xvar, digits = 2),
+                                '</br>', input$kmPlot_y, '(y): ', round(yvar, digits = 2),
+                                '</br>', input$kmPlot_z, '(z): ', round(zvar, digits = 2),
+                                '</br>', input$kmPlot_size, '(size): ', round(sizevar, digits = 2)),
                   color = ~.cluster,
                   colors = soft_12) %>%
           add_markers(size = ~sizevar, 
