@@ -42,10 +42,13 @@ dashboardPage(
         icon = icon("database")
       ),
       selectInput(
-        "agency",
-        label = "Pick an agency:",
-        choices = c("All", levels(unique(scrub_sis$agency))), 
+        "region",
+        label = "Pick a region:",
+        choices = c("All", levels(unique(scrub_sis$PIHP))), 
         selected = "All"
+      ),
+      uiOutput(
+        "agency"
       ),
       dateRangeInput(
         'dateRange',
@@ -369,7 +372,22 @@ dashboardPage(
                 ),
                 tabPanel(
                   "Normal?",
-                  plotlyOutput("norm_sni")
+                  plotlyOutput("norm_sni"),
+                  br(),
+                  box(
+                    title = "Chart settings", 
+                    color = "black",
+                    collapsible = TRUE,
+                    collapsed = T,
+                    width = NULL,
+                    sliderInput(
+                      "norm_bins", 
+                      "Number of bins:", 
+                      min = 1, 
+                      max = 30, 
+                      value = 10
+                    )
+                  )
                 ),
                 tabPanel(
                   "Breakdown",
@@ -501,18 +519,33 @@ dashboardPage(
               tabBox(
                 width = NULL,
                 tabPanel(
-                  "Table",
-                  dataTableOutput("q2_dt")
-                ),
-                tabPanel(
-                  "Chart",
-                  uiOutput('q2domain'),
-                  parsetOutput("tos_q2")
-                ),
-                tabPanel(
                   "About",
                   tabBox(
                     width = NULL,
+                    tabPanel(
+                      "Understanding Type of Need",
+                      p(
+                        "While a global measure like the ", em("Support Needs Index"),
+                        " can help to give an overall picture of a person's 
+                        degree of need, the same score could be made up of 
+                        various types of need (",
+                        em("such as full physical support or coaching"),
+                        ") in various areas of a person's life (",
+                        em("such as eating food or social skills"),
+                        ").  The data presented here allows you to start 
+                        looking at the number of people who have specific types 
+                        of need."
+                        ),
+                      p(
+                        "You could use this to ask the following questions (",
+                        em("and more"),"):",
+                        tags$ul(
+                          tags$li("How many people need support with housekeeping? How much support?  How often?"),
+                          tags$li("Of the people who need full physical support with accessing emergency services, how many are in my region?"),
+                          tags$li("Which specific needs related to living at home have the most variation across people who were assessed?")
+                        )
+                      )
+                        ),
                     tabPanel(
                       "The Table",
                       p(
@@ -535,8 +568,8 @@ dashboardPage(
                         agencies (", em("Difference"), ") in order allow easy 
                         identification of areas where a given agency's scores 
                         are higher or lower than their peers."
-                      )
-                    ),
+                        )
+                      ),
                     tabPanel(
                       "The Chart", 
                       br(),
@@ -554,7 +587,7 @@ dashboardPage(
                         ), 
                         " and so on...?  If so, then this is the visualization for 
                         you."
-                      ), 
+                        ), 
                       p(
                         "With this chart, you can ask multiple questions like:",
                         br(),
@@ -569,7 +602,7 @@ dashboardPage(
                           people needed full physical support on a monthly basis? 
                           How many minutes did they need it?"
                         )
-                      ),
+                        ),
                       p(
                         "When you click on", em("alpha"), " or ", em("size"), 
                         ", the chart sorts the variable alphabetically or by size.  
@@ -582,7 +615,7 @@ dashboardPage(
                         on the top, there will be one color from each type of 
                         support weaving down through the other variables."
                       )
-                    ),
+                      ),
                     tabPanel(
                       "The Data", 
                       br(),
@@ -604,32 +637,41 @@ dashboardPage(
                         em("Type of Support:"), 
                         "The nature of support that would be needed by a person to 
                         engage in the activity in question."
-                      ),
-                      strong("Definitions"),
-                      p(
-                        "The chart uses short words and phrases for ease of use. 
-                        Here are the full definitions from the SIS tool itself ",
-                        a(
-                          href = "http://aaidd.org/docs/default-source/sis-docs/sisfrequencyandscoringclarifications.pdf?sfvrsn=2",
-                          "as defined by AAIDD"
-                        ),":",
-                        br(),
-                        em("Frequency:"),
-                        "Hourly = hourly or more frequently; 
-                        Daily = at least once a day but not once an hour; 
-                        Weekly = at least once a week, but not once a day; 
-                        Monthly = at least once a month, but not once a week; 
-                        None = none or less than monthly",
-                        br(),
-                        em("Daily Support Time (DST):"),
-                        "Over 4 hrs = 4 hours or more; 
-                        2-4 hrs = 2 hours to less than 4 hours; 
-                        Under 2 hrs = 30 minutes to less than 2 hours; 
-                        Under 30 min = less than 30 minutes; 
-                        None = None"
-                      )
+                    ),
+                    strong("Definitions"),
+                    p(
+                      "The chart uses short words and phrases for ease of use. 
+                      Here are the full definitions from the SIS tool itself ",
+                      a(
+                        href = "http://aaidd.org/docs/default-source/sis-docs/sisfrequencyandscoringclarifications.pdf?sfvrsn=2",
+                        "as defined by AAIDD"
+                      ),":",
+                      br(),
+                      em("Frequency:"),
+                      "Hourly = hourly or more frequently; 
+                      Daily = at least once a day but not once an hour; 
+                      Weekly = at least once a week, but not once a day; 
+                      Monthly = at least once a month, but not once a week; 
+                      None = none or less than monthly",
+                      br(),
+                      em("Daily Support Time (DST):"),
+                      "Over 4 hrs = 4 hours or more; 
+                      2-4 hrs = 2 hours to less than 4 hours; 
+                      Under 2 hrs = 30 minutes to less than 2 hours; 
+                      Under 30 min = less than 30 minutes; 
+                      None = None"
                     )
                   )
+                )
+                ),
+                tabPanel(
+                  "Table",
+                  dataTableOutput("q2_dt")
+                ),
+                tabPanel(
+                  "Chart",
+                  uiOutput('q2domain'),
+                  parsetOutput("tos_q2")
                 )
               )
             ),
@@ -1095,8 +1137,8 @@ dashboardPage(
             width = NULL,
             p(
               em("The table below shows information for each of the clusters, 
-                 as well as the average scores on each subscale of the SIS for 
-                 people in that cluster:")
+                 as well as the average scaled scores on each subscale of the  
+                 SIS for people in that cluster:")
             ),
             DT::dataTableOutput("need_grp_dt"),
             box(
