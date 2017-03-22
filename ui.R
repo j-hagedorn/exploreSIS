@@ -26,21 +26,21 @@ dashboardPage(
         tabName = "pattern", 
         icon = icon("cubes")
       ),
-      menuItem(
-        "Compare Raters", 
-        tabName = "inter_rater", 
-        icon = icon("chain-broken")
-      ),
+      # menuItem(
+      #   "Compare Raters", 
+      #   tabName = "inter_rater", 
+      #   icon = icon("chain-broken")
+      # ),
       menuItem(
         "Use in Planning", 
         tabName = "planning", 
         icon = icon("paper-plane")
       ),
-      menuItem(
-        "Data Quality", 
-        tabName = "data_quality", 
-        icon = icon("database")
-      ),
+      # menuItem(
+      #   "Data Quality", 
+      #   tabName = "data_quality", 
+      #   icon = icon("database")
+      # ),
       selectInput(
         "region",
         label = "Pick a region:",
@@ -176,21 +176,21 @@ dashboardPage(
                   "Chart", 
                   dygraphOutput("on_track")
                 ),
-                tabPanel(
-                  "Table", 
-                  dataTableOutput("num_dt")
-                ),
-                tabPanel(
-                  "What if...?",
-                  p(
-                    "Use the sliders below to understand the potential impact 
-                    that various changes might have on interviewer productivity:"
-                  ),
-                  strong("What if..."),
-                  uiOutput("what_staff"),
-                  uiOutput("what_prod"),
-                  dygraphOutput("on_track_what_if")
-                ),
+                # tabPanel(
+                #   "Table", 
+                #   dataTableOutput("num_dt")
+                # ),
+                # tabPanel(
+                #   "What if...?",
+                #   p(
+                #     "Use the sliders below to understand the potential impact 
+                #     that various changes might have on interviewer productivity:"
+                #   ),
+                #   strong("What if..."),
+                #   uiOutput("what_staff"),
+                #   uiOutput("what_prod"),
+                #   dygraphOutput("on_track_what_if")
+                # ),
                 tabPanel(
                   "About",
                   tabBox(
@@ -1236,87 +1236,87 @@ dashboardPage(
           )
         )
       ),
-      tabItem(
-        tabName = "inter_rater",
-        fluidRow(
-          column(
-            width = 6,
-            box(
-              title = "Subscale Comparison", 
-              status = "warning",
-              collapsible = TRUE, 
-              width = NULL,
-              tabBox(
-                width = NULL,
-                tabPanel(
-                  "Boxplot",
-                  uiOutput('box_opts'),
-                  plotlyOutput("box_int")
-                ),
-                tabPanel(
-                  "About",
-                  h4("Boxplots..."),
-                  p(
-                    "The boxplots here show a summary of scores for all current 
-                    interviewers.  A boxplot shows key information about the 
-                    distribution of a measure, i.e. how it is spread out.  It is 
-                    made up of the following pieces:",
-                    br(),
-                    strong("Median: "), 
-                    "The mid-point of the data is shown by the line that divides 
-                    the box into two parts. Half the scores are greater than or 
-                    equal to this value, half are less.",
-                    br(),
-                    strong("Interquartile range: "), 
-                    "The middle 'box' represents the middle 50% of scores for 
-                    the group. The range of scores from lower to upper quartile 
-                    is referred to as the inter-quartile range.",
-                    br(),
-                    strong("Upper quartile: "), 
-                    "75% of the scores fall below the upper quartile. This is 
-                    the top of the box (or the right side if the boxplot is 
-                    displayed horizontally",
-                    br(),
-                    strong("Lower quartile: "), 
-                    "25% of scores fall below the lower quartile. This is the 
-                    bottom (left side) of the box.",
-                    br(),
-                    strong("Whiskers: "), 
-                    "The whiskers stretch to the greatest (top) and least 
-                    (bottom) values in the data, except for outliers.",
-                    br(),
-                    strong("Outliers: "), 
-                    "Outliers are defined as more than 1.5x the upper value or 
-                    less than 1.5x the lower value shown by the whiskers.",
-                    br(),
-                    "For more information, here's a ",
-                    a(href = "http://flowingdata.com/2008/02/15/how-to-read-and-use-a-box-and-whisker-plot/",
-                      "diagram from FlowingData"),
-                    "showing the parts of a boxplot."
-                  ),
-                  br(),
-                  h4("Interpreting them..."),
-                  p(
-                    "Box plots that are comparatively short show that an 
-                    interviewer's scores fall within a restricted range. 
-                    Comparatively tall box plots show a broader range of scores. 
-                    If one box plot is much higher or lower than all the others, 
-                    this may suggest either a difference between individuals 
-                    being assessed or some variation in the way that the 
-                    assessor is scoring individuals."
-                  ),
-                  p(
-                    "Please recall that a broader range of scores by one 
-                    interviewer could be due to characteristics of the group 
-                    they assessed and is not automatically a concern with the 
-                    validity of scoring."
-                  )
-                )
-              )
-            )
-          )
-        )
-      ),
+      # tabItem(
+      #   tabName = "inter_rater",
+      #   fluidRow(
+      #     column(
+      #       width = 6,
+      #       box(
+      #         title = "Subscale Comparison", 
+      #         status = "warning",
+      #         collapsible = TRUE, 
+      #         width = NULL,
+      #         tabBox(
+      #           width = NULL,
+      #           tabPanel(
+      #             "Boxplot",
+      #             uiOutput('box_opts'),
+      #             plotlyOutput("box_int")
+      #           ),
+      #           tabPanel(
+      #             "About",
+      #             h4("Boxplots..."),
+      #             p(
+      #               "The boxplots here show a summary of scores for all current 
+      #               interviewers.  A boxplot shows key information about the 
+      #               distribution of a measure, i.e. how it is spread out.  It is 
+      #               made up of the following pieces:",
+      #               br(),
+      #               strong("Median: "), 
+      #               "The mid-point of the data is shown by the line that divides 
+      #               the box into two parts. Half the scores are greater than or 
+      #               equal to this value, half are less.",
+      #               br(),
+      #               strong("Interquartile range: "), 
+      #               "The middle 'box' represents the middle 50% of scores for 
+      #               the group. The range of scores from lower to upper quartile 
+      #               is referred to as the inter-quartile range.",
+      #               br(),
+      #               strong("Upper quartile: "), 
+      #               "75% of the scores fall below the upper quartile. This is 
+      #               the top of the box (or the right side if the boxplot is 
+      #               displayed horizontally",
+      #               br(),
+      #               strong("Lower quartile: "), 
+      #               "25% of scores fall below the lower quartile. This is the 
+      #               bottom (left side) of the box.",
+      #               br(),
+      #               strong("Whiskers: "), 
+      #               "The whiskers stretch to the greatest (top) and least 
+      #               (bottom) values in the data, except for outliers.",
+      #               br(),
+      #               strong("Outliers: "), 
+      #               "Outliers are defined as more than 1.5x the upper value or 
+      #               less than 1.5x the lower value shown by the whiskers.",
+      #               br(),
+      #               "For more information, here's a ",
+      #               a(href = "http://flowingdata.com/2008/02/15/how-to-read-and-use-a-box-and-whisker-plot/",
+      #                 "diagram from FlowingData"),
+      #               "showing the parts of a boxplot."
+      #             ),
+      #             br(),
+      #             h4("Interpreting them..."),
+      #             p(
+      #               "Box plots that are comparatively short show that an 
+      #               interviewer's scores fall within a restricted range. 
+      #               Comparatively tall box plots show a broader range of scores. 
+      #               If one box plot is much higher or lower than all the others, 
+      #               this may suggest either a difference between individuals 
+      #               being assessed or some variation in the way that the 
+      #               assessor is scoring individuals."
+      #             ),
+      #             p(
+      #               "Please recall that a broader range of scores by one 
+      #               interviewer could be due to characteristics of the group 
+      #               they assessed and is not automatically a concern with the 
+      #               validity of scoring."
+      #             )
+      #           )
+      #         )
+      #       )
+      #     )
+      #   )
+      # ),
       tabItem(
         tabName = "planning",
         fluidRow(
@@ -1775,103 +1775,103 @@ dashboardPage(
             )
           )
         )
-      ),
-      tabItem(
-        tabName = "data_quality",
-        fluidRow(
-          column(
-            width = 12,
-            box(
-              title = "Data Quality Issues", 
-              status = "warning",
-              collapsible = TRUE, 
-              collapsed = FALSE,
-              width = NULL,
-              tabBox(
-                width = NULL,
-                tabPanel(
-                  "Missing or Incorrect Entries",
-                  radioButtons(
-                    "current",
-                    label = "Display:",
-                    choices = c("Current assessors", "All Assessors"), 
-                    selected = "Current assessors",
-                    inline = T
-                  ),
-                  dataTableOutput("dt_datqual")
-                ),
-                tabPanel(
-                  "About",
-                  p(
-                    strong("Unmatched Mcaid IDs"), "counts the number of 
-                    instances in which the Medicaid ID from the SIS data does 
-                    not match with the attribution file."
-                  ),
-                  p(
-                    strong("Missing Start Time"), "and", strong("Missing End Time"),
-                    "count the number of times that no start/end time was entered 
-                    for the assessment, thereby making it impossible to 
-                    calculate the duration of the assessment."
-                  ),
-                  p(
-                    strong("Missing Reason"), 
-                    "counts the number of instances in which no reason was given 
-                    for the completion of the SIS assessment.  Available reasons 
-                    include:", 
-                    em("Change in situation, First SIS, or Regularly scheduled 
-                       assessment")
-                  ),
-                  p(
-                    strong("No Intrvw Setting"),
-                    "counts the number of instances in which the interview 
-                    setting was not specified for the SIS assessment."
-                  ),
-                  p(
-                    strong("Missing Supports Info"),
-                    "counts the number of instances in which information was 
-                    missing from the initial entry field for ", 
-                    em("Supports Relation Type."), " While multiple supports 
-                    can be recorded on the SIS assessment, there is no way of 
-                    knowing the actual number of supports that the individual 
-                    was receiving using the SIS data alone.  This count assumes 
-                    that individuals had at least one support at the time of 
-                    the interview."
-                  ),
-                  p(
-                    strong("Missing Respondents"),
-                    "counts the number of instances in which information was 
-                    missing from the initial entry field for ", 
-                    em("Respondent Relation Type."), " While multiple respondents 
-                    can be recorded on the SIS assessment, there is no way of 
-                    knowing the actual number of respondents that were present 
-                    using the SIS data alone.  This count assumes that 
-                    individuals had at least one respondent present for the 
-                    interview."
-                  ),
-                  p(
-                    strong("State other than MI"),
-                    "counts the number of times that a state other than Michigan 
-                    was identified as the living address of the person being 
-                    assessed.  This is one of a number of issues with data entry 
-                    that may make it difficult to correctly map proximity to 
-                    nearby resources."
-                  ),
-                  p(
-                    strong("No Important To"),
-                    "counts the number of assessments where no items were marked 
-                    as ", em("important to"), " the person being assessed."
-                  ),
-                  p(
-                    strong("No Important For"),
-                    "counts the number of assessments where no items were marked 
-                    as ", em("important for"), " the person being assessed."
-                  )
-                )
-              )
-            )
-          )
-        )
-      )
+      )#,
+      # tabItem(
+      #   tabName = "data_quality",
+      #   fluidRow(
+      #     column(
+      #       width = 12,
+      #       box(
+      #         title = "Data Quality Issues", 
+      #         status = "warning",
+      #         collapsible = TRUE, 
+      #         collapsed = FALSE,
+      #         width = NULL,
+      #         tabBox(
+      #           width = NULL,
+      #           tabPanel(
+      #             "Missing or Incorrect Entries",
+      #             radioButtons(
+      #               "current",
+      #               label = "Display:",
+      #               choices = c("Current assessors", "All Assessors"), 
+      #               selected = "Current assessors",
+      #               inline = T
+      #             ),
+      #             dataTableOutput("dt_datqual")
+      #           ),
+      #           tabPanel(
+      #             "About",
+      #             p(
+      #               strong("Unmatched Mcaid IDs"), "counts the number of 
+      #               instances in which the Medicaid ID from the SIS data does 
+      #               not match with the attribution file."
+      #             ),
+      #             p(
+      #               strong("Missing Start Time"), "and", strong("Missing End Time"),
+      #               "count the number of times that no start/end time was entered 
+      #               for the assessment, thereby making it impossible to 
+      #               calculate the duration of the assessment."
+      #             ),
+      #             p(
+      #               strong("Missing Reason"), 
+      #               "counts the number of instances in which no reason was given 
+      #               for the completion of the SIS assessment.  Available reasons 
+      #               include:", 
+      #               em("Change in situation, First SIS, or Regularly scheduled 
+      #                  assessment")
+      #             ),
+      #             p(
+      #               strong("No Intrvw Setting"),
+      #               "counts the number of instances in which the interview 
+      #               setting was not specified for the SIS assessment."
+      #             ),
+      #             p(
+      #               strong("Missing Supports Info"),
+      #               "counts the number of instances in which information was 
+      #               missing from the initial entry field for ", 
+      #               em("Supports Relation Type."), " While multiple supports 
+      #               can be recorded on the SIS assessment, there is no way of 
+      #               knowing the actual number of supports that the individual 
+      #               was receiving using the SIS data alone.  This count assumes 
+      #               that individuals had at least one support at the time of 
+      #               the interview."
+      #             ),
+      #             p(
+      #               strong("Missing Respondents"),
+      #               "counts the number of instances in which information was 
+      #               missing from the initial entry field for ", 
+      #               em("Respondent Relation Type."), " While multiple respondents 
+      #               can be recorded on the SIS assessment, there is no way of 
+      #               knowing the actual number of respondents that were present 
+      #               using the SIS data alone.  This count assumes that 
+      #               individuals had at least one respondent present for the 
+      #               interview."
+      #             ),
+      #             p(
+      #               strong("State other than MI"),
+      #               "counts the number of times that a state other than Michigan 
+      #               was identified as the living address of the person being 
+      #               assessed.  This is one of a number of issues with data entry 
+      #               that may make it difficult to correctly map proximity to 
+      #               nearby resources."
+      #             ),
+      #             p(
+      #               strong("No Important To"),
+      #               "counts the number of assessments where no items were marked 
+      #               as ", em("important to"), " the person being assessed."
+      #             ),
+      #             p(
+      #               strong("No Important For"),
+      #               "counts the number of assessments where no items were marked 
+      #               as ", em("important for"), " the person being assessed."
+      #             )
+      #           )
+      #         )
+      #       )
+      #     )
+      #   )
+      # )
     )
   )
 )

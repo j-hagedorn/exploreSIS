@@ -664,11 +664,11 @@
       output$plans <- renderPlotly({
         
         region_filt <- if (input$region == "All") {
-          levels(sec3Input()$PIHP)
+          unique(sec3Input()$PIHP)
         } else input$region
 
         agency_filt <- if (input$agency == "All") {
-          levels(sec3Input()$agency)
+          unique(sec3Input()$agency)
         } else input$agency
 
         sec3Input() %>%
@@ -697,11 +697,11 @@
       output$need_import_q2 <- renderPlotly({
         
         region_filt <- if (input$region == "All") {
-          levels(sec2Input()$PIHP)
+          unique(sec2Input()$PIHP)
         } else input$region
         
         agency_filt <- if (input$agency == "All") {
-          levels(sec2Input()$agency)
+          unique(sec2Input()$agency)
         } else input$agency
         
         filt_input <-
@@ -767,11 +767,11 @@
       output$import_q2 <- renderPlotly({
         
         region_filt <- if (input$region == "All") {
-          levels(sec2Input()$PIHP)
+          unique(sec2Input()$PIHP)
         } else input$region
         
         agency_filt <- if (input$agency == "All") {
-          levels(sec2Input()$agency)
+          unique(sec2Input()$agency)
         } else input$agency
         
         sec2Input() %>%
