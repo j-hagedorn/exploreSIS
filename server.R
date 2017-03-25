@@ -82,17 +82,26 @@
 
         avg_person_wk <- ceiling( avg_per_wk / recent_int )
         
+        completed <- 
+          sisByAgency() %>%
+          # Filter out expired assessments (> 3 yrs old)
+          filter(as.Date(sis_date) >= most_recent - (365 * 3)) %>%
+          # Filter out expired assessments as of due date (> 3 yrs old)
+          filter(as.Date(due) - as.Date(sis_date) <= (365 * 3)) %>%
+          droplevels()
+        completed <- nlevels(as.factor(completed$fake_id))
+        
         total_needed <- 
           totals %>% 
           filter(region %in% region_filt
                  & agency %in% agency_filt) %>%
           summarize(total = sum(total, na.rm = T))
         
-        
         # Output as named list
         list(avg_per_wk = avg_per_wk,
              recent_int = recent_int,
              avg_person_wk = avg_person_wk,
+             completed = completed,
              total_needed = total_needed[1,1])
         
       })
@@ -450,19 +459,11 @@
           as.numeric(as.POSIXct(input$dateRange[2]) - as.POSIXct(input$dateRange[1])) / 
           as.numeric(as.POSIXct(due) - as.POSIXct(input$dateRange[1])) * 100
         
-        sisIn <- 
-          sisByAgency() %>%
-          # Filter out expired assessments (> 3 yrs old)
-          filter(as.Date(sis_date) >= most_recent - (365 * 3)) %>%
-          # Filter out expired assessments as of due date (> 3 yrs old)
-          filter(as.Date(due) - as.Date(sis_date) <= (365 * 3)) %>%
-          droplevels()
-        
         # Proportion of clients interviewed in selected time period 
         # to total current clients meeting criteria
         
         pct <- 
-          nlevels(as.factor(sisIn$fake_id)) /
+          sum(on_track_vars()$completed) /
           sum(on_track_vars()$total_needed) * 100
           
         rate <- pct / elapse * 100
@@ -481,16 +482,8 @@
       
       output$complete <- renderValueBox({
         
-        sisIn <- 
-          sisByAgency() %>%
-          # Filter out expired assessments (> 3 yrs old)
-          filter(as.Date(sis_date) >= most_recent - (365 * 3)) %>%
-          # Filter out expired assessments as of due date (> 3 yrs old)
-          filter(as.Date(due) - as.Date(sis_date) <= (365 * 3)) %>%
-          droplevels()
-        
         pct <- 
-          nlevels(as.factor(sisIn$fake_id)) /
+          sum(on_track_vars()$completed) /
           sum(on_track_vars()$total_needed) * 100
         
         valueBox(
@@ -502,17 +495,17 @@
       
       output$needperwk <- renderValueBox({
         
-        avgperwk <- round(mean(per_wk()$n, na.rm = T), digits = 0)
+        week <- seq(from = max(as.Date(per_wk()$week)), to = due, by = "week")
         
-        week <- seq(from = input$dateRange[1], to = due, by = "week")
+        needed <- 
+          ceiling((on_track_vars()$total_needed - on_track_vars()$completed)
+                  / length(week))
         
-        needed <- ceiling(on_track_vars()$total_needed / length(week))
-          
         valueBox(
-          paste0(round(avgperwk, digits = 1), ":",
+          paste0("Complete ",
                  round(needed, digits = 1), " per week"), 
-          "Assessments Completed:Needed", 
-          icon = icon("file-text"),
+          "From now on to meet the goal", 
+          icon = icon("hourglass-half"),
           color = "teal")
         
       })

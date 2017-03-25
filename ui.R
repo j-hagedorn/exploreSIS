@@ -130,34 +130,13 @@ dashboardPage(
                   )
                 ),
                 tabPanel(
-                  "Assessments Completed:Needed",
+                  "Complete ___ per week",
                   p(
-                    "This indicator shows us two numbers, calculated as a weekly 
-                    value to help us get a sense of the work that is needed each 
-                    week:",
-                    br(),
-                    strong("Assessments Completed: "),
-                    "The average number of assessments completed during each week 
-                    in the selected date range.",
-                    em(
-                      "(Note that date ranges including partial weeks will only 
-                    count the assessments on the selected dates, which will 
-                    likely decrease the average due to incomplete data for 
-                    certain weeks.  To avoid this, choose date ranges starting 
-                    with a Monday and ending on a Sunday."
-                    ),
-                    br(),
-                    strong("Assessments Needed"),
-                    "For this we need to get the total number of people needing 
-                    assessments.  For this we take the number of total clients 
-                    meeting criteria for assessment", 
-                    em("(from encounter data indicating services were received 
-                       for a developmental disability diagnosis)"), 
-                      "and subtract the number of people who have had assessments 
-                    prior to the initial date in the date range selected.  We then 
-                    divide the number of people needing assessments by the number 
-                    of weeks between the start of the selected date range and the 
-                    due date."
+                    "This indicator shows how many assessments will need to be 
+                    completed each week from the most recent update of the data 
+                    until the statewide deadline for completion.  Please 
+                    remember that the number is filtered based on the region and 
+                    agency selected in the sidebar."
                   )
                 )
               )
