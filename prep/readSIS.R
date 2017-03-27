@@ -16,8 +16,7 @@
   sis <- 
     sis_full %>% 
     # Filter Status == Completed
-    filter(statusText %in% c("COMPLETED")
-           & deleted == "False") %>% 
+    filter(statusText %in% c("COMPLETED")) %>% 
     # Remove text fields
     select(-ends_with("notes")) %>% 
     # Format datetime fields
