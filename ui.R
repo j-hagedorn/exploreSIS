@@ -350,7 +350,7 @@ dashboardPage(
                   )
                 ),
                 tabPanel(
-                  "Normal?",
+                  "Normal Distribution?",
                   plotlyOutput("norm_sni"),
                   br(),
                   box(
@@ -369,7 +369,7 @@ dashboardPage(
                   )
                 ),
                 tabPanel(
-                  "Breakdown",
+                  "Avg Subscale Scores",
                   dataTableOutput("dt_sni")
                 ),
                 tabPanel(
@@ -387,15 +387,15 @@ dashboardPage(
                         ), 
                         "The ", em("Support Needs Index"), "is a composite score 
                         that reflects a person’s overall intensity of support 
-                        needs across these domains, relative to others with 
-                        developmental disabilities."
+                        needs across these domains, relative to the SIS scores 
+                        of others with developmental disabilities."
                       ),
                       p(
                         "The SIS also measures exceptional Medical and Behavioral 
                         Support Needs, assessing 18 medical conditions and 12 
                         problem behaviors. Since certain medical conditions and 
                         challenging behaviors may require additional support, 
-                        these items indicate cases where the ", 
+                        these items indicate instances where the ", 
                         em("Support Needs Index"), " may not fully reflect a 
                         person’s need for support."
                       )
@@ -417,7 +417,7 @@ dashboardPage(
                       )
                     ),
                     tabPanel(
-                      "Normal?",
+                      "Normal Distribution?",
                       p(
                         "If you've been working with people who analyze data, you 
                         may have heard them use terms like", 
@@ -456,7 +456,7 @@ dashboardPage(
                       )
                     ),
                     tabPanel(
-                      "Breakdown",
+                      "Avg Subscale Scores",
                       p(
                         "The table in the 'Breakdown' tab shows the average scores 
                         for clients assessed by each agency across the sub-scales of 
@@ -505,21 +505,21 @@ dashboardPage(
                       "Understanding Type of Need",
                       p(
                         "While a global measure like the ", em("Support Needs Index"),
-                        " can help to give an overall picture of a person's 
-                        degree of need, the same score could be made up of 
-                        various types of need (",
+                        " can help to give an overall picture of the intensity 
+                        of an individual’s support needs, the same score could 
+                        be made up of various types of need (",
                         em("such as full physical support or coaching"),
                         ") in various areas of a person's life (",
                         em("such as eating food or social skills"),
                         ").  The data presented here allows you to start 
-                        looking at the number of people who have specific types 
-                        of need."
+                        looking at the number of people who have similar support 
+                        needs in any given life area."
                         ),
                       p(
                         "You could use this to ask the following questions (",
                         em("and more"),"):",
                         tags$ul(
-                          tags$li("How many people need support with housekeeping? How much support?  How often?"),
+                          tags$li("How many people need support with housekeeping? What type of support? How much support?  How often?"),
                           tags$li("Of the people who need full physical support with accessing emergency services, how many are in my region?"),
                           tags$li("Which specific needs related to living at home have the most variation across people who were assessed?")
                         )
@@ -568,20 +568,21 @@ dashboardPage(
                         you."
                         ), 
                       p(
-                        "With this chart, you can ask multiple questions like:",
+                        "With this chart you can ask multiple questions such as:",
                         br(),
                         em(
-                          "In the area of money management, how many people needed 
-                          prompting on a daily basis?  How many hours per day did 
-                          they need it?"
+                          "In the area of money management, how many people were 
+                          assessed as needing prompting on a daily basis?  How 
+                          many hours per day were they identified as needing it?"
                         ),
                         br(),
                         em(
                           "In the area of protection from exploitation, how many 
-                          people needed full physical support on a monthly basis? 
-                          How many minutes did they need it?"
+                          people were assessed as needing full physical support 
+                          on a monthly basis? How many minutes were they 
+                          identified as needing it?"
                         )
-                        ),
+                      ),
                       p(
                         "When you click on", em("alpha"), " or ", em("size"), 
                         ", the chart sorts the variable alphabetically or by size.  
@@ -594,7 +595,7 @@ dashboardPage(
                         on the top, there will be one color from each type of 
                         support weaving down through the other variables."
                       )
-                      ),
+                    ),
                     tabPanel(
                       "The Data", 
                       br(),
@@ -604,18 +605,25 @@ dashboardPage(
                         activity addressed in the section are examined 
                         with regard to three measures of support need:",
                         br(),
-                        em("Frequency:"), 
-                        "How often extraordinary support (i.e., support beyond that 
-                        which is typically needed by most individuals without 
-                        disabilities) is required for each targeted activity.",
-                        br(),
-                        em("Daily Support Time:"), 
-                        "Amount of time that is typically devoted to support 
-                        provision on those days when the support is provided.",
-                        br(),
-                        em("Type of Support:"), 
-                        "The nature of support that would be needed by a person to 
-                        engage in the activity in question."
+                        tags$ul(
+                          tags$li(
+                            em("Frequency:"), 
+                            "How often extraordinary support (i.e., support 
+                            beyond that which is typically needed by most 
+                            individuals without disabilities) is required for 
+                            each targeted activity."
+                          ),
+                          tags$li(
+                            em("Daily Support Time:"), 
+                            "Amount of time that is typically devoted to support 
+                            provision on those days when the support is provided."
+                          ),
+                          tags$li(
+                            em("Type of Support:"), 
+                            "The nature of support that would be needed by a 
+                            person to engage in the activity in question."
+                          )
+                        )
                     ),
                     strong("Definitions"),
                     p(
@@ -627,18 +635,42 @@ dashboardPage(
                       ),":",
                       br(),
                       em("Frequency:"),
-                      "Hourly = hourly or more frequently; 
-                      Daily = at least once a day but not once an hour; 
-                      Weekly = at least once a week, but not once a day; 
-                      Monthly = at least once a month, but not once a week; 
-                      None = none or less than monthly",
+                      tags$ul(
+                        tags$li(
+                          "Hourly = hourly or more frequently" 
+                        ),
+                        tags$li(
+                          "Daily = at least once a day but not once an hour"
+                        ),
+                        tags$li(
+                          "Weekly = at least once a week, but not once a day"
+                        ),
+                        tags$li(
+                          "Monthly = at least once a month, but not once a week"
+                        ),
+                        tags$li(
+                          "None = none or less than monthly"
+                        )
+                      ),
                       br(),
                       em("Daily Support Time (DST):"),
-                      "Over 4 hrs = 4 hours or more; 
-                      2-4 hrs = 2 hours to less than 4 hours; 
-                      Under 2 hrs = 30 minutes to less than 2 hours; 
-                      Under 30 min = less than 30 minutes; 
-                      None = None"
+                      tags$ul(
+                        tags$li(
+                          "Over 4 hrs = 4 hours or more"
+                        ),
+                        tags$li(
+                          "2-4 hrs = 2 hours to less than 4 hours"
+                        ),
+                        tags$li(
+                          "Under 2 hrs = 30 minutes to less than 2 hours"
+                        ),
+                        tags$li(
+                          "Under 30 min = less than 30 minutes"
+                        ),
+                        tags$li(
+                          "None = None"
+                        )
+                      )
                     )
                   )
                 )
@@ -722,17 +754,18 @@ dashboardPage(
                         "With this chart, you can ask multiple questions like:",
                         br(),
                         em(
-                          "In the area of money management, how many people needed 
-                          prompting on a daily basis?  How many hours per day did 
-                          they need it?"
+                          "In the area of money management, how many people were 
+                          assessed as needing prompting on a daily basis?  How 
+                          many hours per day were they identified as needing it?"
                         ),
                         br(),
                         em(
                           "In the area of protection from exploitation, how many 
-                          people needed full physical support on a monthly basis? 
-                          How many minutes did they need it?"
+                          people were assessed asa needing full physical support 
+                          on a monthly basis? How many minutes were they 
+                          identified as needing it?"
                         )
-                        ),
+                      ),
                       p(
                         "When you click on", em("alpha"), " or ", em("size"), 
                         ", the chart sorts the variable alphabetically or by size.  
@@ -745,7 +778,7 @@ dashboardPage(
                         on the top, there will be one color from each type of 
                         support weaving down through the other variables."
                       )
-                      ),
+                    ),
                     tabPanel(
                       "The Data", 
                       br(),
@@ -889,7 +922,8 @@ dashboardPage(
                     related to increased levels of support, regardless of 
                     support needs in other life areas. This section of the SIS 
                     looks at 18 medical conditions and 13 problem behaviors 
-                    commonly associated with intellectual disabilities. "
+                    indicative of need for more intensive or more frequent 
+                    supports due to higher risk of harm or vulnerability.  "
                   ),
                   h4("Scoring"),
                   p(
@@ -989,24 +1023,35 @@ dashboardPage(
               tabPanel(
                 "Why group?",
                 p(
-                  "The following scenarios provide examples of instances where 
-                  it may be helpful to define patterns of need in the population 
-                  being served:"
+                  "It is important to note that planning for services in a 
+                  community must take into account a variety of factors.  
+                  Understanding individuals' support needs based on the SIS is 
+                  just one aspect of planning a service delivery system or set 
+                  of services and supports in a local community.   Individuals' 
+                  preferences for who and how services and supports are 
+                  delivered must be actively solicited in any collaborative 
+                  service planning effort."
+                ),
+                p(
+                  "With this in mind, the following scenarios provide examples 
+                  of instances where it may be helpful to define patterns of 
+                  need in the population being served:"
                 ),
                 box(
                   title = "Build Specialized Teams", 
                   color = "black",
                   collapsible = TRUE, collapsed = T, width = NULL,
                   p(
-                    "A supervisor of a supports coordination team for persons with 
-                    I/DD would like to start a pilot program providing intensive, 
-                    multi-disciplinary team based integrated care for quadrant 
-                    four consumers (persons with high behavioral health and 
-                    physical health needs as defined in the Four Quadrant Clinical 
-                    Integration Model). She could use the heat map to identify a 
-                    group of patients for whom this intervention could be offered.",
+                    "A supervisor of a supports coordination team for persons 
+                    with I/DD would like to start a pilot program providing 
+                    intensive, multi-disciplinary team-based integrated care for 
+                    persons with high behavioral health and physical health 
+                    needs.  Clustering could be used to identify groups of 
+                    individuals for whom this intervention could be considered. 
+                    Different numbers of groups could be selected to assist in 
+                    planning and understanding resource needs.",
                     em(
-                      "(In this instance, if she were trying to assign people to 
+                      "(For instance, if she were trying to assign people to 
                       3 supports coordination programs, she may want to highlight 
                       3 groups)"
                     )
@@ -1017,13 +1062,12 @@ dashboardPage(
                   color = "black",
                   collapsible = TRUE, collapsed = T, width = NULL,
                   p(
-                    "  A clinical director would like to identify clinical 
-                    guidelines to assist clinicians in recommending best 
-                    practices based on peoples needs. A first step could be 
-                    taking the domains listed on the heat map and 
-                    identifying any evidence based or best practice 
-                    interventions that meet that particular need for people 
-                    with I/DD."
+                    "A clinical director would like to identify practice 
+                    guidelines to assist staff in recommending services and 
+                    supports based on individuals’ needs. A first step could be 
+                    taking the domains listed on the heat map and identifying 
+                    any evidence-based or best practice interventions that may 
+                    meet the identified needs for people with I/DD."
                   )
                 ),
                 box(
@@ -1031,20 +1075,22 @@ dashboardPage(
                   color = "black",
                   collapsible = TRUE, collapsed = T, width = NULL,
                   p(
-                    "A clinical director would like to know what types of 
-                    trainings would benefit the clinicians serving persons 
-                    with I/DD at his agency. He could look at the heat map 
-                    and determine which three areas represent the highest 
-                    need within the entire I/DD population served."
+                    "A manager could look at the clusters to determine which 
+                    areas represent the highest need or most common needs within 
+                    the I/DD population served to better understand the types of 
+                    training that could benefit staff providing services and 
+                    supports."
                   )
                 )
               ),
               tabPanel(
                 "How?",
                 p(
-                  "Clustering is an exploratory technique.  It won't give you 
-                  any conclusive results, it often generates insights and 
-                  additional questions for analysis.  Here, we provide two different 
+                  "Clustering is an exploratory technique that allows similar 
+                  (or very dissimilar) scores to be identified and grouped 
+                  together in meaningful ways.  While it won't give you any 
+                  conclusive results, it often generates insights and additional 
+                  questions for analysis.  Here, we provide two different 
                   methods of clustering, ", em("k-means"), " and ", 
                   em("hierarchical clustering.")
                 ),
@@ -1322,6 +1368,15 @@ dashboardPage(
                     an individual."
                   ),
                   p(
+                    "While SIS data provides useful, standardized information 
+                    about an individual's support needs, it should not be viewed 
+                    in isolation nor should it be the the sole source of 
+                    information used in planning. The Person-Centered planning 
+                    process should take into account the individual's desires, 
+                    preferences, experiences and goals in addition to their 
+                    support needs."
+                  ),
+                  p(
                     "Case managers may find it helpful to use the areas of need
                     identified (see ", em("Area"), " column) to identify 
                     potential goals for consideration by persons served and 
@@ -1531,7 +1586,15 @@ dashboardPage(
                     levels(codemap$ServiceType),
                     selected = "Care Coordination"
                   ),
-                  dataTableOutput("ipos_svs")
+                  dataTableOutput("ipos_svs"),
+                  p(
+                    "The services identified here are intended to prompt 
+                    consideration and dialogue.  They are not intended to imply 
+                    that any given service is either a current priority for the 
+                    individual or medically necessary based on assessed needs.  
+                    Services and supports should always be determined using the 
+                    person-centered planning process."
+                  )
                 ),
                 tabPanel(
                   "Potential Referrals",
@@ -1590,12 +1653,14 @@ dashboardPage(
                       "Support Needs",
                       p(
                         "This chart shows all life domains ", 
-                        em("i.e. questions"), " where individuals either 
-                        had a need or which they endorsed as important.  It 
-                        excludes item responses where no need existed ", 
-                        em("and"), " the item was not endorsed as important 
-                        since these instances are unlikely to be relevant for 
-                        planning."
+                        em("i.e. questions"), " where a support need was 
+                        identified through the SIS assessment or which the 
+                        person or other SIS respondents endorsed as important to 
+                        or important for the individual. The chart excludes item 
+                        responses where no need was identified ", 
+                        em("and"), " the item was not endorsed as important to 
+                        or for the individual, since these instances are 
+                        unlikely to be relevant for planning."
                       )
                     ),
                     tabPanel(

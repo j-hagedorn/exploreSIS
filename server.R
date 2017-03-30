@@ -423,7 +423,7 @@
       output$id_drop <- renderUI({
         
         selectInput("id_drop",
-                    label = "Select an individual:",
+                    label = "Select an individual (this is not an actual ID):",
                     choices = levels(unique(as.factor(sisByAgency()$fake_id)))
                     )
       })
