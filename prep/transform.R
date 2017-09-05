@@ -309,5 +309,7 @@ q3 <-
                                            "Not endorsed")))) %>%
   select(-import_to_n, -import_for_n, -n)
 
-saveRDS(q2,"data/q2.rds")
-saveRDS(q3,"data/q3.rds")
+library(feather)
+write_feather(q2,"data/q2.feather")
+write_feather(q3,"data/q3.feather")
+
