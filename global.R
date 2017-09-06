@@ -5,8 +5,7 @@
   library(shinythemes)
   library(DT)
   library(ggplot2)
-  library(rcdimple)
-  library(dygraphs)
+  library(dygraphs) 
   library(parsetR)
   library(visNetwork)
   library(d3heatmap)
@@ -21,13 +20,18 @@
   library(lubridate)
   library(RColorBrewer)
   library(car)
+  library(feather)
 
 # Define begin & due dates
   begin <- as.Date("2014/07/01")
   due <- as.Date("2017/09/30")
 
 # Load de-identified data
-  scrub_sis <- read.csv("data/scrub_sis.csv")
+  # scrub_sis <- read.csv("data/scrub_sis.csv")
+  scrub_sis <- read_feather("data/scrub_sis.feather")
+  
+# Change sis_date from factor to date
+  scrub_sis$sis_date <- as.Date(scrub_sis$sis_date, format="%Y-%m-%d")
 
 # Get most recent SIS score
   most_recent <- max(as.Date(scrub_sis$sis_date)[as.Date(scrub_sis$sis_date) <= Sys.Date()])
@@ -45,8 +49,10 @@
   codemap <- read.csv("data/codemap.csv")
 
 # Load transformed dfs to break down TOS
-  q2 <- readRDS("data/q2.rds")
-  q3 <- readRDS("data/q3.rds")
+  # q2 <- readRDS("data/q2.rds")
+  # q3 <- readRDS("data/q3.rds")
+  q2 <- read_feather("data/q2.feather")
+  q3 <- read_feather("data/q3.feather")
     
 # Add color palettes
   soft_12 <- c("#c64457","#d7532a","#ae5d35","#d0ab2c","#a69743",
