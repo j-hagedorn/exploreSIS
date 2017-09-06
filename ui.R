@@ -64,244 +64,367 @@ dashboardPage(
     )
   ),
   dashboardBody(
+    # Suppress errors from waiting on reactive dataframes to be built.
+    tags$style(
+      type="text/css",
+      ".shiny-output-error { visibility: hidden; }",
+      ".shiny-output-error:before { visibility: hidden; }"
+    ),
     tabItems(
       tabItem(
         tabName = "productivity",
         fluidRow(
-          column(
-            width = 6,
-            valueBoxOutput(
-              "rate",
-              width = NULL
-            ), 
-            valueBoxOutput(
-              "complete",
-              width = NULL
-            ), 
-            valueBoxOutput(
-              "needperwk",
-              width = NULL
-            ),
-            box(
-              title = "About these indicators", 
-              status = "warning",
-              collapsible = TRUE, 
-              collapsed = TRUE,
-              width = NULL,
-              tabBox(
-                width = NULL,
-                tabPanel(
-                  "Completion Rate",
-                  p("This basically answers the question", 
-                    em("Am I on track?"), 
-                    "  It's a comparison of 2 percentages: ",
-                    br(),
-                    strong("Numerator: % of assessments completed"),
-                    "This calculates the number of unique clients interviewed in 
-                    the selected date range as a percentage of the total clients 
-                    currently meeting criteria for assessment", 
-                    em("(from encounter data indicating services were received 
-                       for a developmental disability diagnosis)"),
-                    br(),
-                    strong("Denominator: % of time elapsed"),
-                    "This calculates the number of days between the first and last 
-                    dates selected in the date range filter as a percentage of the 
-                    number of days between the first date in the date range filter 
-                    and the due date for initial SIS assessments."
-                  ), 
-                  p(
-                    "So, for example, a score of 100% means that you're completing 
-                    assessments at the rate needed to meet the goal, and a score 
-                    of 200% would mean that you're completing assessments twice as 
-                    quickly as needed to meet your goal, and so on..."
-                  )
+          tabBox(
+            width = 12,
+            tabPanel(
+              "Ongoing Completion",
+              fluidRow(
+                column(
+                  width = 6,
+                  valueBoxOutput(
+                    "overdue",
+                    width = NULL
                   ),
-                tabPanel(
-                  "% Complete",
-                  p(
-                    "This indicator calculates the number of unique clients 
-                    interviewed in the selected date range as a percentage of the 
-                    total clients currently meeting criteria for assessment",
-                    em("(from encounter data indicating services were received 
-                       for a developmental disability diagnosis)")),
-                  p(
-                    em("P.S.  This is exactly the same as the numerator of the"), 
-                    strong("Completion Rate")
+                  valueBoxOutput(
+                    "due30",
+                    width = NULL
+                  ),
+                  valueBoxOutput(
+                    "tocomplete",
+                    width = NULL
+                  ),
+                  box(
+                    title = "About these indicators",
+                    status = "warning",
+                    collapsible = TRUE,
+                    collapsed = TRUE,
+                    width = NULL,
+                    tabBox(
+                      width = NULL,
+                      tabPanel(
+                        "Overdue",
+                        p("This indicator reflects the total number of assessments where the due
+                          date has elapsed and a subsequent assessment has not yet been 
+                          completed. The due date is defined as the maximum assessment date for
+                          an individual plus 3 years (1,095 days).")
+                      ),
+                      tabPanel(
+                        "Due in Next 30 Days",
+                        p("This indicator reflects the total number of assessments that have a due
+                          date that falls within the next 30 days. The due date is defined as the
+                          maximum assessment date for an individual plus 3 years (1,095 days).")
+                      ),
+                      tabPanel(
+                        "Complete ___ per month",
+                        p("This indicator shows how many assessments will need to be completed 
+                          this month in order to stay on track with the current workload. 
+                          This metric is calculated by summing the number of overdue assessments 
+                          and the number of assessments due within the next 12 months and dividing 
+                          that total number by 12.")
+                      )
+                    ),
+                    p(
+                      "The indicators described above relate to the ongoing reassessment of all 
+                      individuals who have received an initial SIS assessment.  Note that the 
+                      following instances are not accounted for in these measures:",
+                      tags$ul(
+                        tags$li("If a person needs an initial SIS but has not received one"),
+                        tags$li("If a person received an initial SIS but no longer meets criteria to receive one"),
+                        tags$li("If a person has been newly admitted to services following the initial completion period")
+                      )
+                    )
                   )
                 ),
-                tabPanel(
-                  "Complete ___ per week",
-                  p(
-                    "This indicator shows how many assessments will need to be 
-                    completed each week from the most recent update of the data 
-                    until the statewide deadline for completion.  Please 
-                    remember that the number is filtered based on the region and 
-                    agency selected in the sidebar."
+                column(
+                  width = 6,
+                  box(
+                    title = "Coming Up...", 
+                    status = "warning",
+                    collapsible = TRUE, 
+                    width = NULL,
+                    tabBox(
+                      width = NULL,
+                      tabPanel(
+                        "By Month",
+                        plotlyOutput("bymonth")
+                      ),
+                      tabPanel(
+                        "By Days Due",
+                        plotlyOutput("bydayct")
+                      ),
+                      tabPanel(
+                        "About",
+                        tabBox(
+                          width = NULL,
+                          tabPanel(
+                            "Chart: By Month",
+                            p("The chart here shows the total number of SIS assessments that have a due date
+                              falling within each month. The due date is defined as the maximum assessment 
+                              date for an individual plus 3 years (1,095 days).")
+                          ),
+                          tabPanel(
+                            "Chart: By Days Due",
+                            p("The chart here shows the total number of SIS assessments that have a due date
+                              falling within the next X number of days. The due date is defined as the maximum
+                              assessment date for an individual plus 3 years (1,095 days).")
+                          )
+                        )
+                      )
+                    )
                   )
                 )
               )
-            )
-          ),
-          column(
-            width = 6,
-            box(
-              title = "On Track?", 
-              status = "warning",
-              collapsible = TRUE, 
-              width = NULL,
-              tabBox(
-                width = NULL,
-                tabPanel(
-                  "Chart", 
-                  dygraphOutput("on_track")
-                ),
-                # tabPanel(
-                #   "Table", 
-                #   dataTableOutput("num_dt")
-                # ),
-                # tabPanel(
-                #   "What if...?",
-                #   p(
-                #     "Use the sliders below to understand the potential impact 
-                #     that various changes might have on interviewer productivity:"
-                #   ),
-                #   strong("What if..."),
-                #   uiOutput("what_staff"),
-                #   uiOutput("what_prod"),
-                #   dygraphOutput("on_track_what_if")
-                # ),
-                tabPanel(
-                  "About",
-                  tabBox(
+            ),
+            tabPanel(
+              "Initial",
+              fluidRow(
+                column(
+                  width = 6,
+                  valueBoxOutput(
+                    "rate",
+                    width = NULL
+                  ), 
+                  valueBoxOutput(
+                    "complete",
+                    width = NULL
+                  ), 
+                  valueBoxOutput(
+                    "needperwk",
+                    width = NULL
+                  ),
+                  box(
+                    title = "About these indicators", 
+                    status = "warning",
+                    collapsible = TRUE, 
+                    collapsed = TRUE,
                     width = NULL,
-                    tabPanel(
-                      "Chart",
-                      br(),
-                      strong("On track to what?"),
-                      p(
-                        "When the SIS was selected by the state for implementation 
-                        in 2014, an expectation was set that all individuals meeting 
-                        criteria for assessment would be assessed within 3 years."
-                      ),
-                      p(
-                        "Agencies implementing the SIS have been wondering how much 
-                        person-time to devote to SIS assessments.  Should this be a 
-                        full time person? Part time?  How many assessors do we need 
-                        to cover the region on an ongoing basis?"
-                      ),
-                      strong("Projected Timeline"), 
-                      p(
-                        "The chart here shows the cumulative number of SIS 
-                        assessments completed per week.  The green line shows actual 
-                        historical data, while the dotted lines show two potential 
-                        futures:",
-                        br(),
-                        "* What will happen if the region's historical SIS 
-                        completion rate continues as it has for the past 3 months?",
-                        br(),
-                        "* What will need to happen in order to meet the required 
-                        timeframe for completion?"
-                      )
-                    ),
-                    tabPanel(
-                      "Table",
-                      br(),
-                      strong("Assessments per Interviewer"),
-                      p(
-                        "In this table, you can see the total number of SIS 
-                        assessments for each interviewer.  Only current interviewers 
-                        are displayed."
-                      ),
-                      p(
-                        "To define the interviewer for a given assessment, we use 
-                        the field recommended by AAIDD for inter-rater reliability 
-                        work.  This field may occasionally ascribe some assessments 
-                        incorrectly due to errors in data entry."
-                      ),
-                      p(
-                        "The average number of assessments per interviewer is",
-                        round(scrub_sis %>% filter(current_int == T) %>%
-                                group_by(interviewer, agency) %>%
-                                summarize(n = n()) %>% ungroup() %>% 
-                                summarize(avg = mean(n, na.rm = T)), 
-                              digits = 1), 
-                        ". Please remember that each interviewer has been completing 
-                        assessments for various lengths of time and each have a 
-                        different proportion of their position designated to 
-                        completing SIS assessments."
-                      ),
-                      p(
-                        "Clicking on the green 'plus' signs next to each row allows 
-                        you to see the values for columns that don't fit in the 
-                        view.  To change which columns are visible, click 'Show/Hide 
-                        Columns' in the upper right corner."
-                      ),
-                      strong("Duration"),
-                      p(
-                        "In order to estimate how many people hours need to be 
-                        dedicated to complete SIS assessments for eligible clients, 
-                        we need to get a sense of how long it takes to do a SIS 
-                        assessment."
-                      ),  
-                      p(
-                        "While there are some issues which still need to be resolved 
-                        with the data, assessments across the region have taken an 
-                        average of ",
-                        round(mean(scrub_sis$duration, na.rm = T), digits = 1), 
-                        " minutes (median = ", 
-                        round(median(scrub_sis$duration, na.rm = T), digits = 1), 
-                        "). Adding some standard assumptions for travel time and 
-                        documentation should allow for a basic estimate of the time 
-                        required to complete a single SIS assessment.  From there, 
-                        we can estimate the total number of hours which will need to 
-                        be devoted to assessment in the region and compare that to 
-                        the available hours of existing SIS interviewers in the 
-                        region during the time remaining."
-                      )
-                    ),
-                    tabPanel(
-                      "What if...?",
-                      br(),
-                      h4("Sliders"),
-                      p(
-                        "You can use the sliding bars to look at what might 
-                        happen using various scenarios where the number of 
-                        interviewers or the productivity of those interviewers 
-                        are either decreased or increased.  The first sliding 
-                        bar starts at zero and lets you add or substract 
-                        interviewers. The second starts at the current average 
-                        per week and lets you change to half or 1.5 times that 
-                        amount."
-                      ),
-                      h4("The Fine Print"),
-                      p(
-                        "The projections here make several assumptions in their 
-                        calculations, which are helpful to understand:",
-                        br(),
-                        strong("Scheduling:"),
-                        "It is possible that SIS interviews are not being 
-                        completed quickly enough to cover the entire population 
-                        due to issues with scheduling SIS assessments", 
-                        em(
-                          "(i.e. it's possible that you have enough people, with 
-                          enough capacity, but there aren't appointments being 
-                          scheduled in an efficient enough manner to keep 
-                          everyone busy)"
+                    tabBox(
+                      width = NULL,
+                      tabPanel(
+                        "Completion Rate",
+                        p("This basically answers the question", 
+                          em("Am I on track?"), 
+                          "  It's a comparison of 2 percentages: ",
+                          br(),
+                          strong("Numerator: % of assessments completed"),
+                          "This calculates the number of unique clients interviewed in 
+                          the selected date range as a percentage of the total clients 
+                          currently meeting criteria for assessment", 
+                          em("(from encounter data indicating services were received 
+                             for a developmental disability diagnosis)"),
+                          br(),
+                          strong("Denominator: % of time elapsed"),
+                          "This calculates the number of days between the first and last 
+                          dates selected in the date range filter as a percentage of the 
+                          number of days between the first date in the date range filter 
+                          and the due date for initial SIS assessments."
+                        ), 
+                        p(
+                          "So, for example, a score of 100% means that you're completing 
+                          assessments at the rate needed to meet the goal, and a score 
+                          of 200% would mean that you're completing assessments twice as 
+                          quickly as needed to meet your goal, and so on..."
+                        )
                         ),
-                        br(),
-                        strong("Current Interviewers:"), 
-                        "The default min and max for the staffing slider is 
-                        based on the average number of assessments per 
-                        interviewer over the past 3 months.",
-                        br(),
-                        strong("FTEs dedicated to SIS:"),
-                        "The projection assumes that each interviewer has the 
-                        same proportion of their position dedicated to SIS 
-                        interviews, though this may not be accurate.  People may 
-                        have other jobs besides SIS assessment, in which case it 
-                        is not accurate to assume that everyone has the same 
-                        capacity. Adding data about FTEs dedicated to SIS 
-                        assessments would allow for this to be more accurate."
+                      tabPanel(
+                        "% Complete",
+                        p(
+                          "This indicator calculates the number of unique clients 
+                          interviewed in the selected date range as a percentage of the 
+                          total clients currently meeting criteria for assessment."
+                        ),
+                        p(
+                          "Assessments are indicated for people who are 18 years 
+                          or older, who have an intellectual or developmental disability, 
+                          have Medicaid/Healthy MI Medicaid, and are currently receiving 
+                          defined services (",
+                          em("i.e. Case Management, Supports Coordination, Respite, 
+                             Home based or Assertive community treatment"),
+                          ").  The denominator excludes individuals whose cases were 
+                          closed, or who declined or refused the assessment, when 
+                          these numbers have been reported to MDHHS."
+                        ),
+                        p(
+                          em("P.S.  This is exactly the same as the numerator of the"), 
+                          strong("Completion Rate")
+                        )
+                      ),
+                      tabPanel(
+                        "Complete ___ per week",
+                        p(
+                          "This indicator shows how many assessments will need to be 
+                          completed each week from the most recent update of the data 
+                          until the statewide deadline for completion.  Please 
+                          remember that the number is filtered based on the region and 
+                          agency selected in the sidebar."
+                        )
+                      )
+                    )
+                  )
+                ),
+                column(
+                  width = 6,
+                  box(
+                    title = "On Track?", 
+                    status = "warning",
+                    collapsible = TRUE, 
+                    width = NULL,
+                    tabBox(
+                      width = NULL,
+                      tabPanel(
+                        "Chart", 
+                        dygraphOutput("on_track")
+                      ),
+                      # tabPanel(
+                      #   "Table", 
+                      #   dataTableOutput("num_dt")
+                      # ),
+                      # tabPanel(
+                      #   "What if...?",
+                      #   p(
+                      #     "Use the sliders below to understand the potential impact 
+                      #     that various changes might have on interviewer productivity:"
+                      #   ),
+                      #   strong("What if..."),
+                      #   uiOutput("what_staff"),
+                      #   uiOutput("what_prod"),
+                      #   dygraphOutput("on_track_what_if")
+                      # ),
+                      tabPanel(
+                        "About",
+                        tabBox(
+                          width = NULL,
+                          tabPanel(
+                            "Chart",
+                            br(),
+                            strong("On track to what?"),
+                            p(
+                              "When the SIS was selected by the state for implementation 
+                              in 2014, an expectation was set that all individuals meeting 
+                              criteria for assessment would be assessed within 3 years."
+                            ),
+                            p(
+                              "Agencies implementing the SIS have been wondering how much 
+                              person-time to devote to SIS assessments.  Should this be a 
+                              full time person? Part time?  How many assessors do we need 
+                              to cover the region on an ongoing basis?"
+                            ),
+                            strong("Projected Timeline"), 
+                            p(
+                              "The chart here shows the cumulative number of SIS 
+                              assessments completed per week.  The green line shows actual 
+                              historical data, while the dotted lines show two potential 
+                              futures:",
+                              br(),
+                              "* What will happen if the region's historical SIS 
+                              completion rate continues as it has for the past 3 months?",
+                              br(),
+                              "* What will need to happen in order to meet the required 
+                              timeframe for completion?"
+                            )
+                          ),
+                          tabPanel(
+                            "Table",
+                            br(),
+                            strong("Assessments per Interviewer"),
+                            p(
+                              "In this table, you can see the total number of SIS 
+                              assessments for each interviewer.  Only current interviewers 
+                              are displayed."
+                            ),
+                            p(
+                              "To define the interviewer for a given assessment, we use 
+                              the field recommended by AAIDD for inter-rater reliability 
+                              work.  This field may occasionally ascribe some assessments 
+                              incorrectly due to errors in data entry."
+                            ),
+                            p(
+                              "The average number of assessments per interviewer is",
+                              round(scrub_sis %>% filter(current_int == T) %>%
+                                      group_by(interviewer, agency) %>%
+                                      summarize(n = n()) %>% ungroup() %>% 
+                                      summarize(avg = mean(n, na.rm = T)), 
+                                    digits = 1), 
+                              ". Please remember that each interviewer has been completing 
+                              assessments for various lengths of time and each have a 
+                              different proportion of their position designated to 
+                              completing SIS assessments."
+                            ),
+                            p(
+                              "Clicking on the green 'plus' signs next to each row allows 
+                              you to see the values for columns that don't fit in the 
+                              view.  To change which columns are visible, click 'Show/Hide 
+                              Columns' in the upper right corner."
+                            ),
+                            strong("Duration"),
+                            p(
+                              "In order to estimate how many people hours need to be 
+                              dedicated to complete SIS assessments for eligible clients, 
+                              we need to get a sense of how long it takes to do a SIS 
+                              assessment."
+                            ),  
+                            p(
+                              "While there are some issues which still need to be resolved 
+                              with the data, assessments across the region have taken an 
+                              average of ",
+                              round(mean(scrub_sis$duration, na.rm = T), digits = 1), 
+                              " minutes (median = ", 
+                              round(median(scrub_sis$duration, na.rm = T), digits = 1), 
+                              "). Adding some standard assumptions for travel time and 
+                              documentation should allow for a basic estimate of the time 
+                              required to complete a single SIS assessment.  From there, 
+                              we can estimate the total number of hours which will need to 
+                              be devoted to assessment in the region and compare that to 
+                              the available hours of existing SIS interviewers in the 
+                              region during the time remaining."
+                            )
+                          ),
+                          tabPanel(
+                            "What if...?",
+                            br(),
+                            h4("Sliders"),
+                            p(
+                              "You can use the sliding bars to look at what might 
+                              happen using various scenarios where the number of 
+                              interviewers or the productivity of those interviewers 
+                              are either decreased or increased.  The first sliding 
+                              bar starts at zero and lets you add or substract 
+                              interviewers. The second starts at the current average 
+                              per week and lets you change to half or 1.5 times that 
+                              amount."
+                            ),
+                            h4("The Fine Print"),
+                            p(
+                              "The projections here make several assumptions in their 
+                              calculations, which are helpful to understand:",
+                              br(),
+                              strong("Scheduling:"),
+                              "It is possible that SIS interviews are not being 
+                              completed quickly enough to cover the entire population 
+                              due to issues with scheduling SIS assessments", 
+                              em(
+                                "(i.e. it's possible that you have enough people, with 
+                                enough capacity, but there aren't appointments being 
+                                scheduled in an efficient enough manner to keep everyone 
+                                busy)"
+                              ),
+                              br(),
+                              strong("Current Interviewers:"), 
+                              "The default min and max for the staffing slider is 
+                              based on the average number of assessments per 
+                              interviewer over the past 3 months.",
+                              br(),
+                              strong("FTEs dedicated to SIS:"),
+                              "The projection assumes that each interviewer has the 
+                              same proportion of their position dedicated to SIS 
+                              interviews, though this may not be accurate.  People may 
+                              have other jobs besides SIS assessment, in which case it 
+                              is not accurate to assume that everyone has the same 
+                              capacity. Adding data about FTEs dedicated to SIS 
+                              assessments would allow for this to be more accurate."
+                            )
+                          )
+                        )
                       )
                     )
                   )
@@ -978,7 +1101,7 @@ dashboardPage(
               tabPanel(
                 "What groups?",
                 p(
-                  "To design programs that meet people where they are, it 
+                  "To design services that meet people where they are, it 
                   helps to understand patterns in the types of needs that 
                   people have in various areas of their lives. You can 
                   check out the ", em("Why group?"), " tab for examples of 
@@ -1353,7 +1476,15 @@ dashboardPage(
               collapsible = TRUE, 
               collapsed = TRUE,
               width = NULL,
+              p(
+                "You can press the ", em("Select new"), 
+                " button below to view the assessment details of a single 
+                individual, selected at random and de-identified.  The various 
+                tabs below show different ways of viewing the data with regard 
+                to planning."
+              ),
               uiOutput('id_drop'), # filter reactive based on selected filters
+              br(),
               tabBox(
                 width = NULL,
                 tabPanel(
