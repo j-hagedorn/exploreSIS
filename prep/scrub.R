@@ -17,7 +17,8 @@ scrub_sis <-
   sub_sis %>%
   mutate(mcaid_id = as.character(mcaid_id)) %>%
   left_join(sis_key, by = "mcaid_id") %>%
-  select(-sis_id, -mcaid_id, -age, -gender, -race, -ethnic,-address)
+  select(-sis_id, -mcaid_id, -age, -gender, -race, -ethnic,-address) %>%
+  droplevels()
 
 # Write SIS Key and Scrubbed data to local workspace
 write.csv(sis_key,"data/sis_key.csv", row.names = F)
