@@ -3,7 +3,7 @@
 # Script to scrub PHI from SIS data to use with Shiny Apps 
 
 # Make an ID key
-mcaid_id <- unique(sub_sis$consumer_id)
+mcaid_id <- unique(sub_sis$mcaid_id)
 sis_key <- data.frame(mcaid_id)
 sis_key$fake_id <- sample(x = 100000001:999999999, 
                           size = length(sis_key$mcaid_id), 
