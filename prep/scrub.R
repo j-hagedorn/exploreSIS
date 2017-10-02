@@ -17,8 +17,29 @@ scrub_sis <-
   sub_sis %>%
   mutate(mcaid_id = as.character(mcaid_id)) %>%
   left_join(sis_key, by = "mcaid_id") %>%
-  select(-sis_id, -mcaid_id, -age, -gender, -race, -ethnic,-address) %>%
-  droplevels()
+  select(-sis_id, -mcaid_id, -age, -gender, -race, -ethnic,-address,
+         # Rm comment fields for 'Other' needs areas
+         -ends_with("_Other")) %>%
+  droplevels() %>%
+  # Mutate factor variables (caused by reading in) to numeric
+  mutate_at(
+    .vars = vars(
+      starts_with("scr_"),
+      starts_with("Q1"),
+      starts_with("Q2"),
+      starts_with("Q3")
+    ),
+    .funs = funs(as.character)
+  ) %>%
+  mutate_at(
+    .vars = vars(
+      starts_with("scr_"),
+      starts_with("Q1"),
+      starts_with("Q2"),
+      starts_with("Q3")
+    ),
+    .funs = funs(as.numeric)
+  )
 
 # Write SIS Key and Scrubbed data to local workspace
 write.csv(sis_key,"data/sis_key.csv", row.names = F)
