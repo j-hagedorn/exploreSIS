@@ -151,7 +151,7 @@
       age, gender, race, ethnic, address, sis_cl_st, # LivingSituation, LivingType,
       # Assessment items
       Q1A1_ExMedSupport:Q1A21_Other,
-      Q1B1_ExBehSupport:Q1B15_Other,
+      Q1B1_ExBehSupport:Q1B13_Other,
       Q2A1_TOS:Q2F8_ImportantFor,
       Q3A1_TOS:Q3A8_ImportantFor,
       Q4A1v1:sis_s44n,
