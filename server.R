@@ -41,9 +41,10 @@
           group_by(sis_yrwk) %>%
           summarize(n = n()) %>%
           rename(week = sis_yrwk) %>%
-          mutate(week = as.Date(week),
-                 avg = NA,
-                 need = NA) %>%
+          mutate(
+            week = as.Date(week),
+            avg = NA
+          ) %>%
           ungroup()
         
         if ((max(per_wk$week) + 7) > most_recent) {
@@ -53,7 +54,7 @@
           # Create empty per week entries between last in seq and most recent in entire dataset
           new_wk <- seq.Date(from = max(per_wk$week) + 7, to = most_recent, by = "week") 
           new_wk <- as.data.frame(new_wk)
-          new_wk %<>% rename(week = new_wk) %>% mutate(n = 0, avg = NA, need = NA)
+          new_wk %<>% rename(week = new_wk) %>% mutate(n = 0, avg = NA)
           per_wk %<>% rbind(new_wk)
         }
         
@@ -97,11 +98,19 @@
                  & agency %in% agency_filt) %>%
           summarize(total = sum(total, na.rm = T))
         
+        overdue <- sisByAgency() %>%
+          group_by(fake_id) %>%
+          summarize(max_sis_dt = max(sis_date)) %>%
+          mutate(overdue = (max_sis_dt + (365*3)) < Sys.Date()) %>%
+          ungroup() %>%
+          summarize(overdue = sum(overdue, na.rm = T))
+        
         # Output as named list
         list(avg_per_wk = avg_per_wk,
              recent_int = recent_int,
              avg_person_wk = avg_person_wk,
              completed = completed,
+             overdue = overdue[1,1],
              total_needed = total_needed[1,1])
         
       })
@@ -256,6 +265,38 @@
         
       })
       
+      lineInput <- reactive({
+        
+        is_current <- if (input$current_prod == "Current assessors") {
+          c(TRUE)
+        } else if (input$current_prod == "All Assessors") {
+          c(TRUE, FALSE)
+        } else print(paste0("Error.  Unrecognized input."))
+        
+        sisByAgency() %>%
+          filter(current_int %in% is_current) %>% # removing cases where assessment duration is negative 
+          filter(duration >= 0) %>%
+          select(
+            interviewer,
+            sub_agency,
+            PIHP,
+            sis_date,sis_yrwk,
+            start,end,duration,
+            fake_id
+          ) %>%
+          mutate(week = floor_date(sis_yrwk, unit = "week")) %>%
+          group_by(interviewer,week) %>%
+          summarize(
+            duration_hrs = sum(duration, na.rm = T)/60,
+            assessments = n(),
+            hr_per_assess = duration_hrs/assessments) %>%
+          group_by(week) %>%
+          mutate(pct = round(assessments/sum(assessments)*100,digits = 2),
+                 running = order_by(interviewer, cumsum(pct))) %>%
+          ungroup()
+        
+      })
+      
       clusterInput <- reactive({
         
         #  Make dataframe for use in cluster analyses
@@ -360,7 +401,6 @@
       
       output$what_prod <- renderUI({
 
-        
         min_avg_wk <- round(on_track_vars()$avg_person_wk * 0.5, digits = 0)
         max_avg_wk <- round(on_track_vars()$avg_person_wk * 3, digits = 0)
         
@@ -377,6 +417,7 @@
       })
       
       output$q2domain <- renderUI({
+        
         tos2 <- tos2Input()
         
         filtre <- if (input$select_area_q2 == "All") {
@@ -399,6 +440,12 @@
       })
       
       output$box_opts <- renderUI({
+        
+        if(input$region == "All" && input$agency == "All") {
+          
+          br()
+        
+          } else
         
         # Make subset for subscale selection
         box_sis <- boxInput()
@@ -424,10 +471,6 @@
         
         actionButton("id_drop", "Select new")
         
-        # selectInput("id_drop",
-        #             label = "Select an individual (this is not an actual ID):",
-        #             choices = levels(unique(as.factor(sisByAgency()$fake_id)))
-        #             )
       })
       
       output$k_vars <- renderUI({
@@ -452,25 +495,149 @@
       })
       
       ## VISUALIZATIONS ####
+  
+      output$all_complete <- renderValueBox({
+        
+        valueBox(
+          prettyNum(on_track_vars()$completed,big.mark = ","), 
+          "Assessments Completed", 
+          icon = icon("file"),
+          color = "teal")
+        
+      })
+      
+      output$not_complete <- renderValueBox({
+        
+        incomplete_init <- on_track_vars()$total_needed - on_track_vars()$completed
+        not_complete <- incomplete_init + on_track_vars()$overdue
+        
+        valueBox(
+          prettyNum(not_complete, big.mark = ","), 
+          "Assessments Due", 
+          icon = icon("hourglass-end"),
+          color = ifelse(not_complete >= 1, no = "green", yes = "red")
+        )
+        
+      })
+      
+      output$per_mo_line <- renderPlotly({
+        
+        done_per_mo <- 
+          sisByAgency() %>%
+          filter(
+            as.POSIXct(sis_date) >= as.POSIXct("2011-12-12")
+            & as.Date(sis_date) <= Sys.Date()
+            # Remove current month
+            & as.Date(sis_date) < floor_date(most_recent, unit = "month")
+          ) %>%
+          mutate(
+            sis_month = floor_date(sis_date, unit = "month")
+          ) %>%
+          group_by(sis_month) %>%
+          summarize(n = n()) %>%
+          rename(month = sis_month) %>%
+          mutate(
+            month = as.Date(month)
+          ) %>%
+          ungroup()
+        
+        due_per_mo <-
+          sisByAgency() %>%
+          filter(
+            as.POSIXct(sis_date) >= as.POSIXct("2011-12-12")
+            & as.Date(sis_date) <= Sys.Date()
+            # Remove current month
+            & as.Date(sis_date) < floor_date(most_recent, unit = "month")
+          ) %>%
+          mutate(
+            due_date = sis_date + (365 * 3),
+            due_month = floor_date(due_date, unit = "month")
+          ) %>%
+          group_by(due_month) %>%
+          summarize(n_due = n()) %>%
+          rename(month = due_month) %>%
+          mutate(
+            month = as.Date(month)
+          ) %>%
+          ungroup()
+        
+        incomplete_init <- on_track_vars()$total_needed - on_track_vars()$completed
+        
+        need_per_mo <- 
+          seq.Date(
+            from = floor_date(most_recent, unit = "month"), 
+            to = max(due_per_mo$month), 
+            by = "month"
+          ) 
+        
+        need_per_mo <- 
+          as.data.frame(need_per_mo) %>%
+          slice(1:input$spread_init) %>%
+          rename(month = need_per_mo) %>%
+          mutate(n_need = incomplete_init/input$spread_init) 
+        
+        per_mo <-
+          done_per_mo %>%
+          full_join(due_per_mo, by = "month") %>%
+          full_join(need_per_mo, by = "month")
+        
+        per_mo %>%
+          plot_ly(
+            x = ~month
+          ) %>%
+          add_lines(
+            y = ~n,
+            name = "Assessments Complete",
+            hoverinfo = 'text',
+            text = ~paste(
+              n," assessments were completed",
+              "<br>during ",month(month,T,F)," of ",year(month)
+            )
+          ) %>%
+          add_bars(
+            y = ~n_due,
+            color = I("#c6dbef"),
+            name = "Reassessments Due",
+            hoverinfo = 'text',
+            text = ~paste(
+              n_due," people have repeat assessments ",
+              "<br>due in ",month(month,T,F)," of ",year(month)
+            )
+          ) %>%
+          add_bars(
+            y = ~n_need,
+            color = I("#deebf7"),
+            name = "Initial Remaining",
+            hoverinfo = 'text',
+            text = ~paste(
+              n_need," initial assessments would need to be completed",
+              "<br>in ",month(month,T,F)," of ",year(month)," in order to",
+              "<br>complete all initial assessments within ",
+              input$spread_init," months."
+            )
+          ) %>%
+          layout(
+            title = "Monthly Trend",
+            xaxis = list(title = 'Month'),
+            yaxis = list(title = 'Assessments'),
+            barmode = 'stack'
+          )
+        
+      })
       
       output$overdue <- renderValueBox({
         
-        overdue <- sisByAgency() %>%
-          group_by(fake_id) %>%
-          summarize(max_sis_dt = max(sis_date)) %>%
-          mutate(overdue = (max_sis_dt + (365*3)) < Sys.Date()) %>%
-          ungroup() %>%
-          summarize(overdueT = sum(overdue, na.rm = T))
-        
         valueBox(
-          paste0(overdue$overdueT), "Overdue Assessments", 
-          icon = icon(ifelse(overdue$overdueT >=1,
+          prettyNum(on_track_vars()$overdue, big.mark = ","), 
+          "Overdue Re-Assessments", 
+          icon = icon(ifelse(on_track_vars()$overdue >= 1,
                              no = "thumbs-up",
                              yes = "thumbs-down")),
-          color = ifelse(overdue$overdueT >= 1,
+          color = ifelse(on_track_vars()$overdue >= 1,
                          no = "green",
                          yes = "red")
         )
+        
       })
       
       output$due30 <- renderValueBox({
@@ -484,34 +651,37 @@
         
         
         valueBox(
-          paste0(due30$due30T), "Assessments Due in Next 30 Days", 
+          paste0(due30$due30T), "Re-Assessments Due in Next 30 Days", 
           icon = icon("calendar"),
-          color = "teal"
+          color = "yellow"
         )
       })
       
       output$tocomplete <- renderValueBox({
         
-        tocomplete <- sisByAgency() %>%
+        tocomplete <- 
+          sisByAgency() %>%
           group_by(fake_id) %>%
           summarize(max_sis_dt = max(sis_date)) %>%
           mutate(
             overdue = (max_sis_dt + (365*3)) < Sys.Date(),
             due12m = max_sis_dt + (365*3) >= Sys.Date() & max_sis_dt + (365*3) <= Sys.Date() + 365
-          )%>%
+          ) %>%
           ungroup %>%
           summarize(
-            to_complete = round(sum(overdue,due12m, na.rm=T)/12, digits = 0)
+            to_complete = round(sum(overdue,due12m, na.rm = T)/12, digits = 0)
           )
         
+        initial_per_mo <- (on_track_vars()$total_needed - on_track_vars()$completed) / 12
+        total_per_mo <- ceiling(tocomplete[1,1] + initial_per_mo)
         
         valueBox(
-          paste0("Complete ",
-                 (tocomplete$to_complete), " per month"),
+          paste0("Complete ",prettyNum(total_per_mo, big.mark = ","), " per month"),
           "To Stay on Track (Includes Overdue Assessments)",
           icon = icon("check"),
           color = "teal"
         )
+
       })
       
       output$bymonth <- renderPlotly({
@@ -523,9 +693,9 @@
           ) %>%
           mutate(
             due_dt = max_sis_dt + (365*3),
-            due_yrwk = as.Date(paste(month(due_dt),"1",year(due_dt), sep="-"), format= "%m-%d-%Y"),
+            due_yrwk = as.Date(paste(month(due_dt),"1",year(due_dt), sep = "-"), format = "%m-%d-%Y"),
             due = as.yearmon(due_yrwk),
-            days_due = (due_dt-Sys.Date())
+            days_due = (due_dt - Sys.Date())
           ) %>%
           ungroup() %>%
           group_by(due,due_yrwk) %>%
@@ -582,7 +752,7 @@
           ) %>%
           ungroup() %>%
           group_by(days_due_ct) %>%
-          summarize(n=n()) %>%
+          summarize(n = n()) %>%
           plot_ly(
             x = ~days_due_ct,
             y = ~n,
@@ -595,7 +765,7 @@
             title = "Assessments Due by Day",
             xaxis = list(title = "Timeframe", tickangle = 90),
             yaxis = list(title = "# Assessments"),
-            margin = list(b=200)
+            margin = list(b = 200)
           )
 
       })
@@ -618,7 +788,7 @@
         rate <- pct / elapse * 100
         
         valueBox(
-          paste0(round(rate, digits = 1), "%"), "Completion Rate", 
+          paste0(round(rate, digits = 1), "%"), "Completion Rate for Initial Assessments", 
           icon = icon(ifelse(rate >= 100,
                              yes = "thumbs-up",
                              no = "thumbs-down")),
@@ -636,7 +806,12 @@
           sum(on_track_vars()$total_needed) * 100
         
         valueBox(
-          paste0(round(pct, digits = 1), "%"), "Complete", 
+          paste0(round(pct, digits = 1), "%"), 
+          paste0(
+            "of Initial Assessments Complete (n = ",
+            prettyNum(on_track_vars()$completed,big.mark = ",")," / ",
+            prettyNum(on_track_vars()$total_needed,big.mark = ","),")"
+          ), 
           icon = icon("pie-chart"),
           color = "teal")
         
@@ -662,7 +837,8 @@
       output$num_dt <- renderDataTable({
         
         sisByAgency() %>% 
-          filter(current_int == T) %>% 
+          filter(current_int == T,
+                 duration >= 0) %>% # removing cases where assessment duration is negative  
           droplevels() %>%
           group_by(interviewer) %>%
           summarize(n = n(),
@@ -685,26 +861,19 @@
         
         per_wk <- per_wk()
         
-        week <- seq(from = max(as.Date(per_wk$week)), to = due, by = "week")
-        
-        # Make projection data
-        tst <- data.frame(week)
-        tst$n <- NA
-        
-        tst$avg <- 
+        avg <-
           seq(from = sum(per_wk$n, na.rm = T) + on_track_vars()$avg_per_wk,
-              to = sum(per_wk$n, na.rm = T) + on_track_vars()$avg_per_wk * length(week),
+              to = on_track_vars()$total_needed,
               by = on_track_vars()$avg_per_wk
           )
         
-        tst$need <- 
-          seq(from = ceiling(sum(per_wk$n, na.rm = T) +
-                (on_track_vars()$total_needed - 
-                   sum(per_wk$n, na.rm = T)) / length(week)),
-              to = sum(per_wk$n, na.rm = T) +
-                ceiling((on_track_vars()$total_needed - sum(per_wk$n, na.rm = T)) / length(week)) * length(week),
-              by = ceiling((on_track_vars()$total_needed - sum(per_wk$n, na.rm = T)) / length(week))
-          )
+        tst <- 
+          as.data.frame(avg) %>%
+          mutate(
+            n = NA,
+            week = seq(from = max(as.Date(per_wk$week)), by = "week", length.out = length(avg))
+          ) %>%
+          select(week,n,avg)
         
         per_wk$week <- as.Date(per_wk$week) # Make date types the same
         
@@ -717,13 +886,12 @@
         
         per_wk$week <- as.POSIXct(per_wk$week)
         
-        per_wk_srs <- as.xts(per_wk$running, order.by=per_wk$week)
+        per_wk_srs <- as.xts(per_wk$running, order.by = per_wk$week)
         
-        names(per_wk_srs)[1]<-"running"
+        names(per_wk_srs)[1] <- "running"
         
         per_wk_srs$avg <- per_wk$avg
-        per_wk_srs$need <- per_wk$need
-        
+
         dygraph(per_wk_srs, main = "Cumulative SIS assessments") %>%
           dyAxis("x", label = "Week of Assessments") %>%
           dyAxis("y", label = "# SIS assessments (cumulative)",
@@ -732,13 +900,16 @@
                    strokeWidth = 2, fillGraph = TRUE) %>%
           dySeries("avg", label = "If trend continues",
                    strokeWidth = 2, strokePattern = "dashed") %>%
-          dySeries("need", label = "To meet goal",
-                   strokeWidth = 2, strokePattern = "dashed") %>%
           dyLegend(width = 400) %>%
           dyEvent(x = "2012-01-22", "Ottawa Starts", labelLoc = "bottom") %>%
           dyEvent(x = "2014-07-01", "Region Starts", labelLoc = "bottom") %>%
           dyEvent(x = "2017-09-20", "Deadline", labelLoc = "bottom") %>%
-          dyRangeSelector(dateWindow = c(as.Date(input$dateRange[1]), as.Date(due)))
+          dyAnnotation(
+            max(per_wk$week), text = "Projected completion",
+            tooltip = "Date by which initial assessments will be completed if average completion rate continues.",
+            width = 80, height = 35
+          ) %>%
+          dyRangeSelector(dateWindow = c(as.Date(input$dateRange[1]), as.Date(max(per_wk$week))))
         
       })
 
@@ -746,60 +917,62 @@
         
         per_wk <- per_wk()
         
-        week <- 
-          # Make a sequence of dates for each week from most recent until due date
-          seq(from = max(as.Date(per_wk$week)[as.Date(per_wk$week) <= Sys.Date()]), 
-              to = due, by = "week") %>%
-          as.data.frame() 
-        
-        names(week)[1] <- "week"
-        
-        per_wk_nxt <- week %>% mutate(n = NA)
-        
         proj_per_wk <- input$what_prod * (on_track_vars()$recent_int + input$what_staff)
         
-        # Cumulative performance assuming avg per week
-        per_wk_nxt$avg <- 
-          seq(from = sum(per_wk$n, na.rm = T) + proj_per_wk,
-              to = sum(per_wk$n, na.rm = T) + proj_per_wk * nrow(week),
-              by = proj_per_wk)
+        avg <-
+          seq(
+            from = sum(per_wk$n, na.rm = T) + proj_per_wk,
+            to = on_track_vars()$total_needed,
+            by = proj_per_wk
+          )
         
-        # Cumulative amount needed per week to consistently reach goal
-        per_wk_nxt$need <- 
-          seq(from = ceiling(sum(per_wk$n, na.rm = T) + 
-                (on_track_vars()$total_needed - 
-                   sum(per_wk$n, na.rm = T)) / nrow(week)),
-              to = sum(per_wk$n, na.rm = T) + ceiling((on_track_vars()$total_needed - sum(per_wk$n, na.rm = T)) / nrow(week)) * nrow(week),
-              by = ceiling((on_track_vars()$total_needed - sum(per_wk$n, na.rm = T)) / nrow(week)))
-                 
-        # Combine historical per week data with projected data
-        per_wk %<>%
-          rbind(per_wk_nxt) %>%
+        projected <- 
+          as.data.frame(avg) %>%
+          mutate(
+            n = NA,
+            week = seq(
+              from = max(as.Date(per_wk$week)), 
+              by = "week", 
+              length.out = length(avg)
+            )
+          ) %>%
+          select(week,n,avg)
+        
+        per_wk$week <- as.Date(per_wk$week) # Make date types the same
+        
+        per_wk <- rbind(per_wk,projected)
+        
+        per_wk <-
+          per_wk %>%
           ungroup() %>%
-          mutate(running = order_by(week, cumsum(n)),
-                 week = as.POSIXct(week)) 
+          mutate(running = order_by(week, cumsum(n))) 
         
-        # Make df into an xts (time sseries) object
-        per_wk_srs <- as.xts(per_wk$running, order.by=per_wk$week)
-        # Change name and add vars
-        names(per_wk_srs)[1]<-"running"
+        per_wk$week <- as.POSIXct(per_wk$week)
+        
+        per_wk_srs <- as.xts(per_wk$running, order.by = per_wk$week)
+        
+        names(per_wk_srs)[1] <- "running"
+        
         per_wk_srs$avg <- per_wk$avg
-        per_wk_srs$need <- per_wk$need
         
         dygraph(per_wk_srs, main = "What if...? Projections") %>%
           dyAxis("x", label = "Week of Assessments") %>%
           dyAxis("y", label = "# SIS assessments (cumulative)",
-                 valueRange = c(0, on_track_vars()$total_needed)) %>%
+                 valueRange = c(0, max(per_wk$need))) %>%
           dySeries("running", label = "Actual", 
                    strokeWidth = 2, fillGraph = TRUE) %>%
           dySeries("avg", label = "With projected changes",
                    strokeWidth = 2, strokePattern = "dashed") %>%
-          dySeries("need", label = "To meet goal",
-                   strokeWidth = 2, strokePattern = "dashed") %>%
           dyLegend(width = 400) %>%
           dyEvent(x = "2012-01-22", "Ottawa Starts", labelLoc = "bottom") %>%
           dyEvent(x = "2014-07-01", "Region Starts", labelLoc = "bottom") %>%
-          dyEvent(x = "2017-09-20", "Deadline", labelLoc = "bottom") 
+          dyEvent(x = "2017-09-30", "Deadline", labelLoc = "bottom") %>%
+          dyAnnotation(
+            max(per_wk$week), text = "Projected completion",
+            tooltip = "Date by which initial assessments could be completed if projected changes were made.",
+            width = 80, height = 35
+          ) %>%
+          dyRangeSelector(dateWindow = c(as.Date(input$dateRange[1]), as.Date(max(per_wk$week))))
         
       })
       
@@ -1685,6 +1858,16 @@
         int_df$int_id <- as.factor(int_id)
         rm(int_id); rm(int_nm)
         
+        if(input$region == "All" & input$agency == "All") {
+          
+          boxInput() %>%
+            plot_ly(x = ~score, color = ~subscale, type = "box") %>%
+            plotly::layout(yaxis = list(title = "Subscale",
+                                        showticklabels = F))
+          
+        } else
+        
+        
         boxInput() %>%
           left_join(int_df, by = c("interviewer" = "int_nm")) %>%
           filter(subscale == input$box) %>%
@@ -1694,9 +1877,52 @@
           
       })
       
-      # Select a random ID when button is selected
-      rand_id <- eventReactive(input$id_drop, {
-        sample(s1_3Input()$fake_id, size = 1, replace = F)
+      output$int_prod <- renderPlotly({
+        
+        if(input$metric == "% of Total") {
+        
+        lineInput() %>%
+          plot_ly(x = ~week, y = ~pct, color = ~interviewer,
+                  hoverinfo = 'text',
+                  text = ~paste(pct, "percent of assessments were completed by",
+                                interviewer, "in the week of",week)) %>%
+          add_lines(y = ~pct) %>%
+          layout(
+            title = "Percent of Total Assessments Completed by Interviewer",
+            xaxis = list(title = "Week"),
+            yaxis = list(title = "Percent of Total Assessments Completed")
+          )
+          
+        } else if(input$metric == "Average Hours"){
+          
+          lineInput() %>%
+            plot_ly(x = ~week, y= ~hr_per_assess, color = ~interviewer,
+                    hoverinfo = 'text',
+                    text = ~paste(interviewer, "spent an average of", hr_per_assess,
+                                  "hours per assessment in the week of",week)) %>%
+            add_lines(y = ~hr_per_assess) %>%
+            layout(
+              title = "Average Hours Spent Per Assessment by Interviewer",
+              xaxis = list(title = 'Week'),
+              yaxis = list(title = 'Hours per Assessment')
+            )
+          
+        } else if(input$metric == "# of Assessments"){
+          
+          lineInput() %>%
+          plot_ly(x = ~week, y= ~assessments, color = ~interviewer,
+                  hoverinfo = 'text',
+                  text = ~paste(assessments, "assessments were completed by",
+                                interviewer, "in the week of",week)) %>%
+          add_lines(y = ~assessments) %>%
+          layout(
+            title = "Number of Assessments Completed by Interviewer",
+            xaxis = list(title = 'Week'),
+            yaxis = list(title = 'Assessments Completed')
+          )
+          
+        }
+        
       })
       
       output$ipos_need <- renderDataTable({
@@ -1705,35 +1931,24 @@
                      detail = 'personal preferences',
                      value = 0.1, 
                      {
-                       DT_in <- s1_3Input() %>% filter(fake_id == rand_id())
+                       DT_in <- ind_svs()
                        
                        # Display Section or QOL area based on user input
                        if ( input$pick_dom == "SIS Section") {
                          DT_in %<>% rename(domain = section_desc)
                        } else if (input$pick_dom == "QOL Domain") {
                          DT_in %<>% rename(domain = qol)
-                       } else
-                         print(paste0("Error.  Unrecognized input."))
-                       
-                       # Filter needs displayed based on user selection
-                       if ( input$filter_ipos == "Important to or for this person") {
-                         DT_in %<>% filter(import_to == T | import_for == T) 
-                       } else if (input$filter_ipos == "Important to/for, or in a higher risk area") {
-                         DT_in %<>% filter(import_to == T | import_for == T | need_svc == T)
-                       } else if (input$filter_ipos == "All needs") {
-                         DT_in <- DT_in
+
                        } else
                          print(paste0("Error.  Unrecognized input."))
                        
                        DT_in %>%
-                         group_by(fake_id) %>%
-                         filter(as.Date(sis_date) == max(as.Date(sis_date))) %>%
                          filter(!grepl("^Q1",section)) %>% # Exclude Section 1 items
-                         filter(score > 0) %>%
                          arrange(domain,desc(score)) %>%
                          ungroup() %>%
                          select(domain,item_desc,score,
                                 type,frequency,DST,importance) %>%
+                         distinct(.keep_all = T) %>%
                          datatable(
                            rownames = F,
                            colnames = c('Area','Need','Score',
@@ -1839,6 +2054,55 @@
                                                    c('bold', 'bold'))
                          )
                      })
+        
+      })
+      
+      output$ind_ntwk_table <- renderDataTable({
+        
+        DT_in <- 
+          ind_svs_filt() %>%
+          group_by(ServiceType, short_desc, HCPCS) %>%
+          summarize(
+            # Concatenate needs
+            related_needs = paste(item_desc, collapse = ", "),
+            needs = n()
+          ) %>%
+          arrange(desc(needs)) 
+        
+        DT_in %>%
+          datatable(
+            rownames = F,
+            colnames = c(
+              "Service Type","Service","Code","Related needs from SIS","Needs Addressed"
+            ),
+            options = list(
+              pageLength = nrow(DT_in),
+              dom = 't'
+            )
+          ) %>%
+          formatStyle(
+            'needs',
+            background = styleColorBar(DT_in$needs, 'gray'),
+            backgroundSize = '100% 90%',
+            backgroundRepeat = 'no-repeat',
+            backgroundPosition = 'center'
+          ) 
+          
+      })
+      
+      output$ind_ntwk_graph <- renderVisNetwork({
+        
+        visNetwork(ind_ntwk()$nodes, ind_ntwk()$edges, height = "500px", width = "100%") %>% 
+          visOptions(
+            highlightNearest = list(enabled = T, degree = 1, hover = F)
+          ) %>%
+          visEdges(
+            color = list(color = "#E0EEEE", highlight = "#E1AF00"),
+            arrows = list(from = list(enabled = TRUE, scaleFactor = 1))
+          ) %>%
+          visPhysics(maxVelocity = 5,stabilization = F) %>%
+          visLayout(randomSeed = 123) %>%
+          visLegend(width = 0.1, position = "right")
         
       })
       
@@ -1993,69 +2257,7 @@
         
       })
       
-      output$ipos_svs <- renderDataTable({
-        
-        withProgress(message = 'Thinking...',
-                     detail = 'of relevant services',
-                     value = 0.1, 
-                     {
-                       tst_need <- needs_matrix
-                       rownames(tst_need) <- tst_need$Code
-                       tst_need <- 
-                         tst_need %>% 
-                         select(-Code) %>% 
-                         t() %>% 
-                         as.data.frame()
-                       
-                       tst_need$item <- rownames(tst_need)
-                       
-                       DT_in <- 
-                         s1_3Input() %>% 
-                         filter(fake_id == rand_id()) %>%
-                         filter(as.Date(sis_date) == max(as.Date(sis_date))) %>%
-                         # Identify areas with identified need (>0)
-                         filter(score > 0) %>%
-                         # Include only endorsed or high need items
-                         filter(need_svc == T | import_to == T | import_for == T) %>%
-                         select(item,item_desc,score) %>%
-                         left_join(tst_need, by = "item") %>%
-                         group_by(item) %>%
-                         gather(HCPCS,need_mapped,everything(),-item,-item_desc,-score) %>%
-                         filter(need_mapped == T) %>%
-                         select(-need_mapped) %>%
-                         left_join(codemap, by = "HCPCS") %>%
-                         filter(ServiceType == input$svc_typ) %>%
-                         select(-med_unitcost) %>%
-                         ungroup() %>%
-                         group_by(short_desc,HCPCS) %>%
-                         summarize(related_needs = paste(item_desc, collapse=", "),
-                                   # Concatenate needs
-                                   needs = n(),
-                                   score = sum(score, na.rm = F)) %>%
-                         arrange(desc(needs),desc(score)) 
-                       
-                       DT_in %>%
-                         datatable(
-                           rownames = F,
-                           colnames = c("Service","Code","Related needs from SIS",
-                                        "Needs Addressed","Intensity of Need"),
-                           options = list(pageLength = nrow(DT_in),
-                                          dom = 't')) %>%
-                         formatStyle('needs',
-                                     background = styleColorBar(DT_in$needs, 'gray'),
-                                     backgroundSize = '100% 90%',
-                                     backgroundRepeat = 'no-repeat',
-                                     backgroundPosition = 'center') %>%
-                         formatStyle('score',
-                                     background = styleColorBar(DT_in$score, 'gray'),
-                                     backgroundSize = '100% 90%',
-                                     backgroundRepeat = 'no-repeat',
-                                     backgroundPosition = 'center')
-                     })
-        
-        
-      })
-      
+
       output$need_scree <- renderPlotly({
         
         scree <- function(df) {
@@ -2076,22 +2278,6 @@
           layout(xaxis = list(title = "Number of clusters"),
                  yaxis = list(title = "Within groups <br>sum of squares")) %>%
           hide_legend()
-        
-      })
-      
-      output$need_heat <- renderD3heatmap({
-
-        withProgress(message = 'Creating heatmap...',
-                     detail = 'Clustering can take awhile...',
-                     value = 0.1, 
-                     {d3heatmap(clusterInput(), 
-                                colors = "Blues",
-                                dendrogram = "row",
-                                k_row = input$need_rows, 
-                                theme = "",
-                                yaxis_font_size =  "0pt",
-                                show_grid = F)
-                     })
         
       })
       
@@ -2173,6 +2359,96 @@
         
       })
       
+      output$cluster_viz_ui <- renderUI({
+        
+        if (input$dt_clust_type == "k-means clusters") {
+          
+          box(
+            title = "Visualizing Groups",
+            status = "warning",
+            collapsible = T,
+            collapsed = T,
+            width = NULL,
+            tabBox(
+              width = NULL,
+              tabPanel(
+                "What to compare?",
+                p(
+                  "People are wonderfully complex, even when you're just looking 
+                  at how they score on an assessment. This complexity can be 
+                  hard to visualize all at once. Since the k-means algorithm 
+                  groups people based on a number of variables taken together (", 
+                  em("here, the SIS subscales"), "), it's helpful to look at 
+                  different life areas to see how they vary across the clustered 
+                  groups. Below you can select the variables you'd like to 
+                  visualize before moving to the ", em("Visualize"), " panel."
+                  ),
+                uiOutput("k_vars")
+                ),
+              tabPanel(
+                "Visualize",
+                plotlyOutput("need_km")
+              )
+            )
+          )
+        
+        } else if (input$dt_clust_type == "hierarchical clusters") {
+          
+          box(
+            title = "Visualizing Groups",
+            status = "warning",
+            collapsible = T,
+            collapsed = T,
+            width = NULL,
+            tabBox(
+              width = NULL,
+              tabPanel(
+                "About the visualization",
+                p(
+                  "The visualization here is called a ",
+                  a(
+                    href = "https://en.wikipedia.org/wiki/Heat_map",
+                    "heatmap"
+                  ),
+                  ".  This one shows the most recent scores for each 
+                  client who has received a SIS assessment. Each client is 
+                  depicted as a row in the heatmap.  The values of the scores
+                  for each subscale have been ", 
+                  a(
+                    href = "https://stat.ethz.ch/R-manual/R-devel/library/base/html/scale.html",
+                    "normalized"
+                  ),
+                  " to allow for comparison.  Darker blue means a higher 
+                  score, while lighter blue means a lower score. You can 
+                  click and drag over cells to zoom in and look more 
+                  closely at a given set."),
+                p("Here you can look at broader patterns of need across life 
+                  domains for the current population of clients who have been 
+                  assessed.  The root-like shapes on the sides of the heatmap 
+                  are called", 
+                  a(
+                    href = "https://en.wikipedia.org/wiki/Dendrogram",
+                    "dendrograms"
+                  ),
+                  "and they show how the different elements (here, clients and 
+                  subscales) are grouped.  The clusters clients whose 
+                  patterns of need are most distinct based on the SIS subscales 
+                  are shown in different colors. To allow you to more easily see these 
+                  groupings, the heatmap allows you to select a number of groups 
+                  (colors) to highlight for both the rows and columns."
+                )
+              ),
+              tabPanel(
+                "Plot",
+                d3heatmapOutput("need_heat")
+              )
+            )
+          )
+          
+        } else print(paste0("Error.  Unrecognized input."))
+        
+      })
+      
       output$need_km <- renderPlotly({
         
         df <-
@@ -2206,11 +2482,32 @@
         
       })
       
+      output$need_heat <- renderD3heatmap({
+        
+        withProgress(
+          message = 'Creating heatmap...',
+          detail = 'Clustering can take awhile...',
+          value = 0.1, 
+          {
+           d3heatmap(
+             clusterInput(), 
+             colors = "Blues",
+             dendrogram = "row",
+             k_row = input$need_rows, 
+             theme = "",
+             yaxis_font_size =  "0pt",
+             show_grid = F
+           )
+          }
+        )
+        
+      })
+      
       output$dt_datqual <- DT::renderDataTable({
         
-        is_current <- if(input$current == "Current assessors") {
+        is_current <- if (input$current == "Current assessors") {
           c(TRUE)
-        } else if(input$current == "All Assessors") {
+        } else if (input$current == "All Assessors") {
           c(TRUE, FALSE)
         } else print(paste0("Error.  Unrecognized input."))
         
@@ -2296,6 +2593,149 @@
                       backgroundRepeat = 'no-repeat',
                       backgroundPosition = 'center')
           
+        
+      })
+      
+      output$sis_docs <- renderUI({
+        
+        box(
+          title = "Supports Intensity Scale (SIS) Documentation",
+          status = "warning",
+          collapsible = F,
+          collapsed = F,
+          width = NULL,
+          tabBox(
+            width = NULL,
+            tabPanel(
+              "Validity and Reliability",
+              p(
+                "The studies listed below demonstrate the validity and inter-rater 
+                reliability of the Supports Intensity Scale instrument:"
+              ),
+              tags$ul(
+                tags$li(
+                  tags$a(
+                    href = "https://www.researchgate.net/profile/Marc_Tasse/publication/242208218_Psychometric_Properties_of_the_Supports_Intensity_Scale/links/0046352f16ae154df0000000.pdf", 
+                    "Buntinx, W., Cobigo, V., McLaughlin, C., Morin, D., 
+                    Tasse, M., & Thompson, J. R. (2008). Psychometric Properties 
+                    of the Supports Intensity Scale. AAIDD SIS White Paper 
+                    Series, 40-49."
+                  )
+                ),
+                tags$li(
+                  tags$a(
+                    href = "https://www.researchgate.net/profile/Goele_Bossaert/publication/45088932_Factorial_Validity_of_the_Supports_Intensity_Scale_SIS/links/09e41501f831fe8825000000/Factorial-Validity-of-the-Supports-Intensity-Scale-SIS.pdf",
+                    "Kuppens, S., Bossaert, G., Buntinx, W., Molleman, C., 
+                    Van den Abbeele, A., & Maes, B. (2010). Factorial validity 
+                    of the supports intensity scale (SIS). American journal on 
+                    intellectual and developmental disabilities, 115(4), 327-339."
+                  )
+                ),
+                tags$li(
+                  tags$a(
+                    href = "https://link.springer.com/article/10.1007/s10882-011-9227-3",
+                    "Smit, W., Sabbe, B., & Prinzie, P. (2011). Reliability and 
+                    validity of the Supports Intensity Scale (SIS) measured in 
+                    adults with physical disabilities. Journal of developmental 
+                    and physical disabilities, 23(4), 277-287. "
+                  )
+                ),
+                tags$li(
+                  tags$a(
+                    href = "http://www.aaiddjournals.org/doi/abs/10.1352/2326-6988-2.2.100",
+                    "Shogren, K. A., Thompson, J. R., Wehmeyer, M. L., 
+                    Chapman, T., Tassé, M. J., & McLaughlin, C. A. (2014). 
+                    Reliability and validity of the supplemental protection and 
+                    advocacy scale of the supports intensity scale. Inclusion, 
+                    2(2), 100-109."
+                  )
+                ),
+                tags$li(
+                  tags$a(
+                    href = "https://pdfs.semanticscholar.org/8763/60ca66e37bb0b043106f126eadb2dac77641.pdf",
+                    "Thompson, J. R., Tassé, M. J., & McLaughlin, C. A. (2008). 
+                    Interrater reliability of the Supports Intensity Scale (SIS). 
+                    AJMR, 113(3), 231."
+                  )
+                ),
+                tags$li(
+                  tags$a(
+                    href = "http://www.sciencedirect.com/science/article/pii/S0891422209000092",
+                    "Weiss, J. A., Lunsky, Y., Tassé, M. J., & Durbin, J. (2009). 
+                    Support for the construct validity of the Supports Intensity 
+                    Scale based on clinician rankings of need. Research in 
+                    developmental disabilities, 30(5), 933-941."
+                  )
+                )
+              )
+            ),
+            tabPanel(
+              "Use in Person-Centered Planning",
+              p(
+                "The studies listed below demonstrate the use of the Supports 
+                Intensity Scale (SIS) instrument to inform person-centered 
+                planning:"
+              ),
+              tags$ul(
+                tags$li(
+                  tags$a(
+                    href = "http://bonhamresearch.com/PDF/2008SchalockEnhancing%20Personal%20Outcomes%20JPPID.pdf",
+                    "Schalock, R. L., Verdugo, M. A., Bonham, G. S., Fantova, F., 
+                    & Van Loon, J. (2008). Enhancing personal outcomes: 
+                    Organizational strategies, guidelines, and examples. Journal 
+                    of Policy and Practice in Intellectual Disabilities, 5(4), 
+                    276-285."
+                  )
+                ),
+                tags$li(
+                  tags$a(
+                    href = "https://biblio.ugent.be/publication/1169626/file/6748818.pdf",
+                    "Van Loon, J., Claes, C., Vandevelde, S., Van Hove, G., & 
+                    Schalock, R. L. (2010). Assessing individual support needs 
+                    to enhance personal outcomes. Exceptionality, 18(4), 193-202."
+                  )
+                ),
+                tags$li(
+                  tags$a(
+                    href = "https://www.researchgate.net/profile/Todd_Little/publication/23787619_Efficacy_of_the_Supports_Intensity_Scale_SIS_to_Predict_Extraordinary_Support_Needs/links/0c96052bb754f42e8c000000.pdf",
+                    "Wehmeyer, M., Chapman, T. E., Little, T. D., Thompson, J. R., 
+                    Schalock, R., & Tasse, M. J. Efficacy of the Supports 
+                    Intensity Scale (SIS) to Predict Extraordinary Support Needs."
+                  )
+                )
+              )
+            ),
+            tabPanel(
+              "Use at Systems Level",
+              p(
+                "The studies listed below demonstrate the use of the Supports 
+                Intensity Scale (SIS) instrument at the systems level:"
+              ),
+              tags$ul(
+                tags$li(
+                  tags$a(
+                    href = "http://buntinx.org/yahoo_site_admin/assets/docs/Models_of_Disability_-_Buntinx__Schalock_2010_JPPID.144132950.pdf",
+                    "Buntinx, W. H., & Schalock, R. L. (2010). Models of 
+                    disability, quality of life, and individualized supports: 
+                    Implications for professional practice in intellectual 
+                    disability. Journal of Policy and Practice in Intellectual 
+                    Disabilities, 7(4), 283-294. "
+                  )
+                ),
+                tags$li(
+                  tags$a(
+                    href = "https://www.academia.edu/35095940/The_use_of_evidence-based_outcomes_in_systems_and_organizations_providing_services_and_supports_to_persons_with_intellectual_disability",
+                    "van Loon, J. H., Bonham, G. S., Peterson, D. D., Schalock, 
+                    R. L., Claes, C., & Decramer, A. E. (2013). The use of 
+                    evidence-based outcomes in systems and organizations 
+                    providing services and supports to persons with intellectual 
+                    disability. Evaluation and Program Planning, 36(1), 80-87."
+                  )
+                )
+              )
+            )
+          )
+        )
         
       })
       

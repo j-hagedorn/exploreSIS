@@ -26,25 +26,30 @@ dashboardPage(
         tabName = "pattern", 
         icon = icon("cubes")
       ),
-      # menuItem(
-      #   "Compare Raters", 
-      #   tabName = "inter_rater", 
-      #   icon = icon("chain-broken")
-      # ),
+      menuItem(
+        "Compare Raters",
+        tabName = "inter_rater",
+        icon = icon("chain-broken")
+      ),
       menuItem(
         "Use in Planning", 
         tabName = "planning", 
         icon = icon("paper-plane")
       ),
-      # menuItem(
-      #   "Data Quality", 
-      #   tabName = "data_quality", 
-      #   icon = icon("database")
-      # ),
+      menuItem(
+        "Data Quality",
+        tabName = "data_quality",
+        icon = icon("database")
+      ),
+      menuItem(
+        "Documentation", 
+        tabName = "docs", 
+        icon = icon("bookmark")
+      ),
       selectInput(
         "region",
         label = "Pick a region:",
-        choices = c("All", levels(unique(scrub_sis$PIHP))), 
+        choices = c("All", sort(levels(scrub_sis$PIHP))), 
         selected = "All"
       ),
       uiOutput(
@@ -66,7 +71,7 @@ dashboardPage(
   dashboardBody(
     # Suppress errors from waiting on reactive dataframes to be built.
     tags$style(
-      type="text/css",
+      type = "text/css",
       ".shiny-output-error { visibility: hidden; }",
       ".shiny-output-error:before { visibility: hidden; }"
     ),
@@ -77,7 +82,81 @@ dashboardPage(
           tabBox(
             width = 12,
             tabPanel(
-              "Ongoing Completion",
+              "Overall Completion",
+              fluidRow(
+                column(
+                  width = 6,
+                  valueBoxOutput(
+                    "all_complete",
+                    width = NULL
+                  ),
+                  valueBoxOutput(
+                    "not_complete",
+                    width = NULL
+                  ),
+                  box(
+                    title = "About these indicators",
+                    status = "warning",
+                    collapsible = TRUE,
+                    collapsed = TRUE,
+                    width = NULL,
+                    tabBox(
+                      width = NULL,
+                      tabPanel(
+                        "Assessments Completed",
+                        p(
+                          "This indicator shows the total number of assessments 
+                          that have completed.  Only the most recent assessment 
+                          is counted for each person served, and assessments 
+                          that have expired (",
+                          em("e.g. those which are more than 3 years old"),
+                          ") are not included in the count."
+                        ),
+                        p(
+                          "Since the dataset does not indicate whether individuals 
+                          are actively receiving services at the present time, 
+                          this number may include some individuals who received 
+                          an assessment but are no longer receiving services."
+                        )
+                      ),
+                      tabPanel(
+                        "Assessments Due",
+                        p(
+                          "This shows the total number of assessments currently 
+                          due, including both initial assessments that have not 
+                          yet been completed and re-assessments that are due but 
+                          have not been completed."
+                        ),
+                        p(
+                          "Note that re-assessments are shown as due for anyone 
+                          who previously had a SIS assessment, and that this 
+                          number does not account for individuals who may have 
+                          left services."
+                        ),
+                        p(
+                          "This number also does not include new individuals who 
+                          have recently been admitted into services following the 
+                          initial implementation of the SIS instrument between 
+                          2014 and 2017."
+                        )
+                      )
+                    )
+                  )
+                ),
+                column(
+                  width = 6,
+                  plotlyOutput("per_mo_line"),
+                  sliderInput(
+                    "spread_init",
+                    "Complete remaining initial assessments over ___ months:",
+                    min = 6, max = 24,
+                    value = 12
+                  )
+                )
+              )
+            ),
+            tabPanel(
+              "Ongoing Re-Assessment",
               fluidRow(
                 column(
                   width = 6,
@@ -120,7 +199,9 @@ dashboardPage(
                           this month in order to stay on track with the current workload. 
                           This metric is calculated by summing the number of overdue assessments 
                           and the number of assessments due within the next 12 months and dividing 
-                          that total number by 12.")
+                          that total number by 12.  It also includes the remaining number 
+                          of assessments due from initial implementation and distributes 
+                          those over the 12-month period.")
                       )
                     ),
                     p(
@@ -176,7 +257,7 @@ dashboardPage(
               )
             ),
             tabPanel(
-              "Initial",
+              "Initial Implementation",
               fluidRow(
                 column(
                   width = 6,
@@ -217,7 +298,9 @@ dashboardPage(
                           "This calculates the number of days between the first and last 
                           dates selected in the date range filter as a percentage of the 
                           number of days between the first date in the date range filter 
-                          and the due date for initial SIS assessments."
+                          and the due date for initial SIS assessments.  Note that because 
+                          the due date has passed, the denominator will continue to grow 
+                          beyond 100%, since more than the required timeframe has elapsed."
                         ), 
                         p(
                           "So, for example, a score of 100% means that you're completing 
@@ -252,11 +335,10 @@ dashboardPage(
                       tabPanel(
                         "Complete ___ per week",
                         p(
-                          "This indicator shows how many assessments will need to be 
-                          completed each week from the most recent update of the data 
-                          until the statewide deadline for completion.  Please 
-                          remember that the number is filtered based on the region and 
-                          agency selected in the sidebar."
+                          "This indicator is no longer shown, since the due date 
+                          for completion has passed and it is no longer possible 
+                          to reach the goal.  All outstanding assessments must be 
+                          completed in order to be in compliance."
                         )
                       )
                     )
@@ -265,7 +347,7 @@ dashboardPage(
                 column(
                   width = 6,
                   box(
-                    title = "On Track?", 
+                    title = "How Overdue?", 
                     status = "warning",
                     collapsible = TRUE, 
                     width = NULL,
@@ -275,21 +357,23 @@ dashboardPage(
                         "Chart", 
                         dygraphOutput("on_track")
                       ),
-                      # tabPanel(
-                      #   "Table", 
-                      #   dataTableOutput("num_dt")
-                      # ),
-                      # tabPanel(
-                      #   "What if...?",
-                      #   p(
-                      #     "Use the sliders below to understand the potential impact 
-                      #     that various changes might have on interviewer productivity:"
-                      #   ),
-                      #   strong("What if..."),
-                      #   uiOutput("what_staff"),
-                      #   uiOutput("what_prod"),
-                      #   dygraphOutput("on_track_what_if")
-                      # ),
+                      tabPanel(
+                        "Table",
+                        dataTableOutput("num_dt"),
+                        br(),
+                        p("Note: Assessments with a negative duration time were removed.")
+                      ),
+                      tabPanel(
+                        "What if...?",
+                        p(
+                          "Use the sliders below to understand the potential impact
+                          that various changes might have on interviewer productivity:"
+                        ),
+                        strong("What if..."),
+                        uiOutput("what_staff"),
+                        uiOutput("what_prod"),
+                        dygraphOutput("on_track_what_if")
+                      ),
                       tabPanel(
                         "About",
                         tabBox(
@@ -297,7 +381,7 @@ dashboardPage(
                           tabPanel(
                             "Chart",
                             br(),
-                            strong("On track to what?"),
+                            strong("Due Date"),
                             p(
                               "When the SIS was selected by the state for implementation 
                               in 2014, an expectation was set that all individuals meeting 
@@ -313,14 +397,19 @@ dashboardPage(
                             p(
                               "The chart here shows the cumulative number of SIS 
                               assessments completed per week.  The green line shows actual 
-                              historical data, while the dotted lines show two potential 
-                              futures:",
-                              br(),
-                              "* What will happen if the region's historical SIS 
-                              completion rate continues as it has for the past 3 months?",
-                              br(),
-                              "* What will need to happen in order to meet the required 
-                              timeframe for completion?"
+                              historical data, while the dotted line shows what will 
+                              happen if the region's historical SIS completion rate 
+                              continues as it has for the past 3 months?"
+                            ),
+                            p(
+                              "The future trendline is generated for as many weeks as 
+                              will be needed in order to complete SIS assessments for the 
+                              population initially identified as eligible.  Note that this 
+                              projected completion date will vary depending on the PIHP/CMH 
+                              selected.  The projected completion date for the state or for 
+                              a given region assumes an even and consistent effort for all 
+                              organizations within it, and if this is not possible then 
+                              completion may take longer."
                             )
                           ),
                           tabPanel(
@@ -409,10 +498,15 @@ dashboardPage(
                                 busy)"
                               ),
                               br(),
-                              strong("Current Interviewers:"), 
-                              "The default min and max for the staffing slider is 
+                              strong("Based on current practice:"), 
+                              "The default min and max for the ",
+                              em("assessments per week")," slider is 
                               based on the average number of assessments per 
-                              interviewer over the past 3 months.",
+                              interviewer over the past 3 months for the 
+                              organization(s) selected. Users should be aware 
+                              that drastic changes in productivity expectations 
+                              without accompanying increases in staffing may have 
+                              implications for the quality of assessments.",
                               br(),
                               strong("FTEs dedicated to SIS:"),
                               "The projection assumes that each interviewer has the 
@@ -1296,185 +1390,154 @@ dashboardPage(
                 inline = T
               ),
               p(
-                "To dig in and analyze the groupings created by the ",
-                em("k-means"), " algorithm, go to the ",
-                em("Visualizing Groups"), " tab.  To see the groups made by ",
-                em("hierarchical clustering"), ", check out the ",
-                em("Heatmap"), " visualization..."
+                "To dig in and analyze the groupings created by the algorithm, 
+                please visit the ", em("Visualizing Groups"), " tab, below."
               )
             )
           ),
-          box(
-            title = "Visualizing Groups",
-            status = "warning",
-            collapsible = T,
-            collapsed = T,
-            width = NULL,
-            tabBox(
-              width = NULL,
-              tabPanel(
-                "What to compare?",
-                p(
-                  "People are wonderfully complex, even when you're just looking 
-                  at how they score on an assessment. This complexity can be 
-                  hard to visualize all at once. Since the k-means algorithm 
-                  groups people based on a number of variables taken together (", 
-                  em("here, the SIS subscales"), "), it's helpful to look at 
-                  different life areas to see how they vary across the clustered 
-                  groups. Below you can select the variables you'd like to 
-                  visualize before moving to the ", em("Visualize"), " panel."
+          uiOutput("cluster_viz_ui")
+        )
+      ),
+      tabItem(
+        tabName = "inter_rater",
+        fluidRow(
+          column(
+            width = 12,
+            box(
+              title = "Productivity Trends",
+              status = "warning",
+              collapsible = TRUE,
+              width = 6,
+              tabBox(
+                width = NULL,
+                tabPanel(
+                  "Productivity Trends",
+                  radioButtons(
+                    "metric",
+                    label = "Select a productivty metric:",
+                    choices = c("# of Assessments","% of Total","Average Hours"),
+                    selected = "# of Assessments",
+                    inline = T
+                  ),
+                  plotlyOutput("int_prod"),
+                  radioButtons(
+                    "current_prod",
+                    label = "Display:",
+                    choices = c("Current assessors", "All Assessors"),
+                    selected = "Current assessors",
+                    inline = T
+                  )
                 ),
-                uiOutput("k_vars")
-              ),
-              tabPanel(
-                "Visualize",
-                plotlyOutput("need_km")
+                tabPanel(
+                  "About",
+                  h4("Productivity Trends..."),
+                  p(
+                    "The charts here show a variety of weekly productivity 
+                    metrics for each SIS interviewer. Different display options 
+                    include:",
+                    br(),
+                    strong("% of Total: "),
+                    "The percentage of total assessments per week that each 
+                    interviewer comprises.",
+                    br(),
+                    strong("Average Hours: "),
+                    "The average number of hours spent completing an assessment 
+                    for the given week.",
+                    br(),
+                    strong("# of Assessments: "),
+                    "The total number of assessments completed for the given week."
+                  )
+                )
               )
-            )
-          ),
-          box(
-            title = "Heatmap",
-            status = "warning",
-            collapsible = T,
-            collapsed = T,
-            width = NULL,
-            tabBox(
-              width = NULL,
-              tabPanel(
-                "Plot",
-                d3heatmapOutput("need_heat")
-              ),
-              tabPanel(
-                "About",
-                p(
-                  "The visualization here is called a ",
-                  a(
-                    href = "https://en.wikipedia.org/wiki/Heat_map",
-                    "heatmap"
+            ),
+            box(
+              title = "Subscale Comparison",
+              status = "warning",
+              collapsible = TRUE,
+              width = 6,
+              tabBox(
+                width = NULL,
+                tabPanel(
+                  "Subscale Comparison",
+                  uiOutput('box_opts'),
+                  plotlyOutput("box_int")
+                ),
+                tabPanel(
+                  "About",
+                  h4("Subscale Comparison..."),
+                  p(
+                    "The boxplots here show a summary of scores. When viewing all regions,
+                    the boxplots display each subscale score in aggregate. When a single
+                    region is select, the boxplots show a summary of scores for all current
+                    interviewers for the selected subscale.  A boxplot shows key information 
+                    about the distribution of a measure, i.e. how it is spread out.  It is
+                    made up of the following pieces:",
+                    br(),
+                    strong("Median: "),
+                    "The mid-point of the data is shown by the line that divides
+                    the box into two parts. Half the scores are greater than or
+                    equal to this value, half are less.",
+                    br(),
+                    strong("Interquartile range: "),
+                    "The middle 'box' represents the middle 50% of scores for
+                    the group. The range of scores from lower to upper quartile
+                    is referred to as the inter-quartile range.",
+                    br(),
+                    strong("Upper quartile: "),
+                    "75% of the scores fall below the upper quartile. This is
+                    the top of the box (or the right side if the boxplot is
+                    displayed horizontally",
+                    br(),
+                    strong("Lower quartile: "),
+                    "25% of scores fall below the lower quartile. This is the
+                    bottom (left side) of the box.",
+                    br(),
+                    strong("Whiskers: "),
+                    "The whiskers stretch to the greatest (top) and least
+                    (bottom) values in the data, except for outliers.",
+                    br(),
+                    strong("Outliers: "),
+                    "Outliers are defined as more than 1.5x the upper value or
+                    less than 1.5x the lower value shown by the whiskers.",
+                    br(),
+                    "For more information, here's a ",
+                    a(href = "http://flowingdata.com/2008/02/15/how-to-read-and-use-a-box-and-whisker-plot/",
+                      "diagram from FlowingData"),
+                    "showing the parts of a boxplot."
+                    ),
+                  br(),
+                  h4("Interpreting them..."),
+                  p(
+                    "Box plots that are comparatively short show that an
+                    interviewer's scores fall within a restricted range.
+                    Comparatively tall box plots show a broader range of scores.
+                    If one box plot is much higher or lower than all the others,
+                    this may suggest either a difference between individuals
+                    being assessed or some variation in the way that the
+                    assessor is scoring individuals."
                   ),
-                  ".  This one shows the most recent scores for each 
-                  client who has received a SIS assessment. Each client is 
-                  depicted as a row in the heatmap.  The values of the scores
-                  for each subscale have been ", 
-                  a(
-                    href = "https://stat.ethz.ch/R-manual/R-devel/library/base/html/scale.html",
-                    "normalized"
-                  ),
-                  " to allow for comparison.  Darker blue means a higher 
-                  score, while lighter blue means a lower score. You can 
-                  click and drag over cells to zoom in and look more 
-                  closely at a given set."),
-                p("Here you can look at broader patterns of need across life 
-                  domains for the current population of clients who have been 
-                  assessed.  The root-like shapes on the sides of the heatmap 
-                  are called", 
-                  a(
-                    href = "http://wheatoncollege.edu/lexomics/files/2012/08/How-to-Read-a-Dendrogram-Web-Ready.pdf",
-                    "dendrograms"
-                  ),
-                  "and they show how the different elements (here, clients and 
-                  subscales) are grouped.  The clusters clients whose 
-                  patterns of need are most distinct based on the SIS subscales 
-                  are shown in different colors. To allow you to more easily see these 
-                  groupings, the heatmap allows you to select a number of groups 
-                  (colors) to highlight for both the rows and columns."
+                  p(
+                    "Please recall that a broader range of scores by one
+                    interviewer could be due to characteristics of the group
+                    they assessed and is not automatically a concern with the
+                    validity of scoring."
+                  )
                 )
               )
             )
           )
         )
       ),
-      # tabItem(
-      #   tabName = "inter_rater",
-      #   fluidRow(
-      #     column(
-      #       width = 6,
-      #       box(
-      #         title = "Subscale Comparison", 
-      #         status = "warning",
-      #         collapsible = TRUE, 
-      #         width = NULL,
-      #         tabBox(
-      #           width = NULL,
-      #           tabPanel(
-      #             "Boxplot",
-      #             uiOutput('box_opts'),
-      #             plotlyOutput("box_int")
-      #           ),
-      #           tabPanel(
-      #             "About",
-      #             h4("Boxplots..."),
-      #             p(
-      #               "The boxplots here show a summary of scores for all current 
-      #               interviewers.  A boxplot shows key information about the 
-      #               distribution of a measure, i.e. how it is spread out.  It is 
-      #               made up of the following pieces:",
-      #               br(),
-      #               strong("Median: "), 
-      #               "The mid-point of the data is shown by the line that divides 
-      #               the box into two parts. Half the scores are greater than or 
-      #               equal to this value, half are less.",
-      #               br(),
-      #               strong("Interquartile range: "), 
-      #               "The middle 'box' represents the middle 50% of scores for 
-      #               the group. The range of scores from lower to upper quartile 
-      #               is referred to as the inter-quartile range.",
-      #               br(),
-      #               strong("Upper quartile: "), 
-      #               "75% of the scores fall below the upper quartile. This is 
-      #               the top of the box (or the right side if the boxplot is 
-      #               displayed horizontally",
-      #               br(),
-      #               strong("Lower quartile: "), 
-      #               "25% of scores fall below the lower quartile. This is the 
-      #               bottom (left side) of the box.",
-      #               br(),
-      #               strong("Whiskers: "), 
-      #               "The whiskers stretch to the greatest (top) and least 
-      #               (bottom) values in the data, except for outliers.",
-      #               br(),
-      #               strong("Outliers: "), 
-      #               "Outliers are defined as more than 1.5x the upper value or 
-      #               less than 1.5x the lower value shown by the whiskers.",
-      #               br(),
-      #               "For more information, here's a ",
-      #               a(href = "http://flowingdata.com/2008/02/15/how-to-read-and-use-a-box-and-whisker-plot/",
-      #                 "diagram from FlowingData"),
-      #               "showing the parts of a boxplot."
-      #             ),
-      #             br(),
-      #             h4("Interpreting them..."),
-      #             p(
-      #               "Box plots that are comparatively short show that an 
-      #               interviewer's scores fall within a restricted range. 
-      #               Comparatively tall box plots show a broader range of scores. 
-      #               If one box plot is much higher or lower than all the others, 
-      #               this may suggest either a difference between individuals 
-      #               being assessed or some variation in the way that the 
-      #               assessor is scoring individuals."
-      #             ),
-      #             p(
-      #               "Please recall that a broader range of scores by one 
-      #               interviewer could be due to characteristics of the group 
-      #               they assessed and is not automatically a concern with the 
-      #               validity of scoring."
-      #             )
-      #           )
-      #         )
-      #       )
-      #     )
-      #   )
-      # ),
       tabItem(
         tabName = "planning",
         fluidRow(
           column(
             width = 12,
             box(
-              title = "Individual Recommendations (In development)",
+              title = "Individual Recommendations",
               status = "warning",
               collapsible = TRUE, 
-              collapsed = TRUE,
+              collapsed = F,
               width = NULL,
               p(
                 "You can press the ", em("Select new"), 
@@ -1485,183 +1548,214 @@ dashboardPage(
               ),
               uiOutput('id_drop'), # filter reactive based on selected filters
               br(),
+              box(
+                title = "Choose your preferences", 
+                color = "black",
+                collapsible = TRUE, collapsed = T, width = NULL,
+                selectInput(
+                  "filter_ipos",
+                  label = "I want to focus on needs which are...",
+                  choices = c(
+                    "Important to or for this person",
+                    "Important to/for, or in a higher risk area",
+                    "All needs"
+                  ), 
+                  selected = "Important to/for, or in a higher risk area"
+                ),
+                selectInput(
+                  "filter_ntwk_type",
+                  label = "I want to see...",
+                  choices = c(
+                    "The simplest set of services to address my needs",
+                    "All services which might be relevant"
+                  ),
+                  selected = "The simplest set of services to address my needs"
+                ),
+                selectInput(
+                  "filter_community_based",
+                  label = "I want my services to be provided in...",
+                  choices = c(
+                    "An independent community-based setting",
+                    "A congregate facility-based setting is also acceptable"
+                  ),
+                  selected = "An independent community-based setting"
+                ),
+                box(
+                  title = "More about these options", 
+                  color = "black",
+                  collapsible = TRUE, collapsed = T, width = NULL,
+                  p(
+                    "Below you can see what's included and excluded by each of
+                    the filter options above:"
+                  ),
+                  p(
+                    strong("Important to or for this person: "),
+                    "The items displayed above were endorsed by either 
+                    the person (", em("To"), 
+                    "), members of their support system ", em("For"), 
+                    "), or both (", em("To and For"), 
+                    ") as being important in the person's life.",
+                    "These items should be considered a priority during the 
+                    person-centered planning process. Case managers can use 
+                    the information here to:",
+                    tags$ul(
+                      tags$li("prompt the person to consider whether to pursue 
+                              a new goal"),
+                      tags$li("consider potential referrals for additional 
+                              supports"),
+                      tags$li("revisit items already addressed in the person's 
+                              previous plan of service"),
+                      tags$li("note items that will be addressed in future 
+                              planning")
+                      ),
+                    "Items which were endorsed as important but which did not 
+                    have any need indicated during the assessment (", 
+                    em("i.e. where the score was zero"),
+                    ") are not included in the list above."
+                    ),
+                  p(
+                    "Items from the ", em("Behavioral Supports"), " and ", 
+                    em("Medical Supports"), " sections do not have the option 
+                    of being endorsed as important by the person or their 
+                    support network.  These items are included in the ", 
+                    em("Medical/Behavioral"), " tab."
+                  ),
+                  p(
+                    strong("Important to/for, or in a higher risk area: "),
+                    "This option will also display any items that are marked as 
+                    important to or for the person, and also includes needs in 
+                    any of the following areas: ",
+                    em(paste(needs$item_desc[needs$need_svc == T 
+                                             & needs$section != "Q1A" 
+                                             & needs$section != "Q1B"],
+                             sep = '',collapse = ', '))
+                  ),
+                  p(
+                    strong("All needs:"),
+                    "This option displays all needs with a score of greater 
+                    than zero, regardless of whether they were marked as 
+                    important to the person or if they are related to a higher 
+                    risk area."
+                  )
+                )
+              ),
               tabBox(
                 width = NULL,
                 tabPanel(
                   "Instructions",
-                  h4("Use in Person-Centered Planning"),
-                  p(
-                    "The needs identified by the Supports Intensity Scale® (SIS) 
-                    are an important aspect of the person-centered planning 
-                    process.  Results from the SIS should be used to inform the 
-                    discussion about what natural supports, medically-necessary 
-                    services, and community resources are needed to support 
-                    an individual."
+                  box(
+                    title = "Using the SIS in Person-Centered Planning", 
+                    color = "black",
+                    collapsible = TRUE, collapsed = T, width = NULL,
+                    p(
+                      "The needs identified by the Supports Intensity Scale® (SIS) 
+                      are an important aspect of the person-centered planning 
+                      process.  Results from the SIS should be used to inform the 
+                      discussion about what natural supports, medically-necessary 
+                      services, and community resources are needed to support 
+                      an individual."
+                    ),
+                    p(
+                      "While SIS data provides useful, standardized information 
+                      about an individual's support needs, it should not be viewed 
+                      in isolation nor should it be the the sole source of 
+                      information used in planning. The Person-Centered planning 
+                      process should take into account the individual's desires, 
+                      preferences, experiences and goals in addition to their 
+                      support needs."
+                    ),
+                    p(
+                      "Case managers may find it helpful to use the areas of need
+                      identified (see ", em("Area"), " column) to identify 
+                      potential goals for consideration by persons served and 
+                      their planning team.  Within each area, the specific 
+                      needs identified (see ", em("Need")," column) can inform 
+                      specific objectives related to the broader goals.  It may 
+                      be helpful for case managers to review the full SIS report 
+                      for additional details or comments provided by the SIS 
+                      assessor."
+                    ),
+                    p(
+                      "All needs identified in the SIS should be either addressed 
+                      or deferred in the person centered plan. The reason for 
+                      deferral should be stated explicitly in planning 
+                      documentation."
+                    )
                   ),
-                  p(
-                    "While SIS data provides useful, standardized information 
-                    about an individual's support needs, it should not be viewed 
-                    in isolation nor should it be the the sole source of 
-                    information used in planning. The Person-Centered planning 
-                    process should take into account the individual's desires, 
-                    preferences, experiences and goals in addition to their 
-                    support needs."
-                  ),
-                  p(
-                    "Case managers may find it helpful to use the areas of need
-                    identified (see ", em("Area"), " column) to identify 
-                    potential goals for consideration by persons served and 
-                    their planning team.  Within each area, the specific 
-                    needs identified (see ", em("Need")," column) can inform 
-                    specific objectives related to the broader goals.  It may 
-                    be helpful for case managers to review the full SIS report 
-                    for additional details or comments provided by the SIS 
-                    assessor."
-                  ),
-                  p(
-                    "All needs identified in the SIS should be either addressed 
-                    or deferred in the person centered plan. The reason for 
-                    deferral should be stated explicitly in planning 
-                    documentation."
-                  ),
-                  h4("What's Included..."),
-                  p(
-                    "The output here does not represent all items from the SIS 
-                    for every person.  Instead, it intends to highlight areas 
-                    that may be most relevant to person-centered planning.  
-                    While there are ", paste0(nrow(needs)), " needs assessed by 
-                    the SIS, needs are displayed only when they meet 
-                    the following criteria:",
-                    tags$ul(
-                      tags$li("The need has been identified as important by the 
+                  box(
+                    title = "What's Included...", 
+                    color = "black",
+                    collapsible = TRUE, collapsed = T, width = NULL,
+                    p(
+                      "The output here does not represent all items from the SIS 
+                      for every person.  Instead, it intends to highlight areas 
+                      that may be most relevant to person-centered planning.  
+                      While there are ", paste0(nrow(needs)), " needs assessed by 
+                      the SIS, needs are displayed only when they meet 
+                      the following criteria:",
+                      tags$ul(
+                        tags$li("The need has been identified as important by the 
                               person"),
-                      tags$li("The need has been identified as important by the 
+                        tags$li("The need has been identified as important by the 
                               person's family, friends or other supports"),
-                      tags$li("The need falls into a high-risk group which 
+                        tags$li("The need falls into a high-risk group which 
                               should be considered as part of treatment 
                               planning"),
-                      tags$li("There is a need identified in that area, 
+                        tags$li("There is a need identified in that area, 
                               indicated by a score greater than 0")
-                    )  
+                      )  
+                    ),
+                    p(
+                      "While the person may have needs in other areas, this focus 
+                      is intended to promote safety while also identifying 
+                      personal priorities."
+                    )
                   ),
-                  p(
-                    "While the person may have needs in other areas, this focus 
-                    is intended to promote safety while also identifying 
-                    personal priorities."
-                  ),
-                  h4("Limitations"),
-                  p(
-                    "Since the SIS evaluates the intensity of support needed for 
-                    individuals to lead independent lives, it may require some 
-                    interpretation to apply its findings to a non-independent 
-                    setting.  In such instances, some level of family, CLS 
-                    and/or PC supports would be available on a day-to-day basis.  
-                    The structured setting provided by a family home or facility 
-                    may therefore already be meeting some of the frequency and 
-                    daily support time needed to support certain areas."
-                  ),
-                  p(
-                    "The IDs for individual profiles which are shown in the 
-                    drop-down do not correspond to individuals and is currently 
-                    intended only as an example of how SIS data might be used in 
-                    the process of developing an IPOS."
-                  ),
-                  p(
-                    "The frequency and daily support time reflect the level of 
-                    support needed for the individual to participate in a given 
-                    activity just as another person of the same age in the 
-                    community. These items do not indicate that services should 
-                    be authorized with a specific scope, amount, or duration."
-                  ),
-                  p(
-                    "The Supports Intensity Scale is not intended to be the sole 
-                    source of information assisting in the development of an 
-                    individualized plan of service."
+                  box(
+                    title = "Limitations of the SIS", 
+                    color = "black",
+                    collapsible = TRUE, collapsed = T, width = NULL,
+                    p(
+                      "Since the SIS evaluates the intensity of support needed for 
+                      individuals to lead independent lives, it may require some 
+                      interpretation to apply its findings to a non-independent 
+                      setting.  In such instances, some level of family, CLS 
+                      and/or PC supports would be available on a day-to-day basis.  
+                      The structured setting provided by a family home or facility 
+                      may therefore already be meeting some of the frequency and 
+                      daily support time needed to support certain areas."
+                    ),
+                    p(
+                      "The frequency and daily support time reflect the level of 
+                      support needed for the individual to participate in a given 
+                      activity just as another person of the same age in the 
+                      community. These items do not indicate that services should 
+                      be authorized with a specific scope, amount, or duration."
+                    ),
+                    p(
+                      "The Supports Intensity Scale is not intended to be the sole 
+                      source of information assisting in the development of an 
+                      individualized plan of service."
+                    )
                   )
                 ),
                 tabPanel(
                   "Support Needs",
                   dataTableOutput("ipos_need"),
                   br(),
-                  box(
-                    title = "Settings", 
-                    color = "black",
-                    collapsible = TRUE, collapsed = T, width = NULL,
-                    radioButtons(
-                      "pick_dom",
-                      label = "Display needs by:",
-                      choices = c("SIS Section", "QOL Domain"), 
-                      selected = "SIS Section",
-                      inline = T
-                    ),
-                    p(
-                      "The numeric scores (", em("shaded by intensity of need"),
-                      ") shown in the table are comprised of scores for the 
-                      intensity of ",
-                      em("Type"),", ", em("Frequency"), ", and ", 
-                      em("Daily Support Time"), "related to the need."
-                    ),
-                    selectInput(
-                      "filter_ipos",
-                      label = "Include needs which are...",
-                      choices = c("Important to or for this person",
-                                  "Important to/for, or in a higher risk area",
-                                  "All needs"), 
-                      selected = "Important to or for this person"
-                    ),
-                    p(
-                      "Below you can see what's included and excluded by each of
-                      the filter options above:"
-                    ),
-                    p(
-                      strong("Important to or for this person: "),
-                      "The items displayed above were endorsed by either 
-                      the person (", em("To"), 
-                      "), members of their support system ", em("For"), 
-                      "), or both (", em("To and For"), 
-                      ") as being important in the person's life.",
-                      "These items should be considered a priority during the 
-                      person-centered planning process. Case managers can use 
-                      the information here to:",
-                      tags$ul(
-                        tags$li("prompt the person to consider whether to pursue 
-                                a new goal"),
-                        tags$li("consider potential referrals for additional 
-                                supports"),
-                        tags$li("revisit items already addressed in the person's 
-                                previous plan of service"),
-                        tags$li("note items that will be addressed in future 
-                                planning")
-                      ),
-                      "Items which were endorsed as important but which did not 
-                      have any need indicated during the assessment (", 
-                      em("i.e. where the score was zero"),
-                      ") are not included in the list above."
-                    ),
-                    p(
-                      "Items from the ", em("Behavioral Supports"), " and ", 
-                      em("Medical Supports"), " sections do not have the option 
-                      of being endorsed as important by the person or their 
-                      support network.  These items are included in the ", 
-                      em("Medical/Behavioral"), " tab."
-                    ),
-                    p(
-                      strong("Important to/for, or in a higher risk area: "),
-                      "This option will also display any items that are marked as 
-                      important to or for the person, and also includes needs in 
-                      any of the following areas: ",
-                      em(paste(needs$item_desc[needs$need_svc == T 
-                                               & needs$section != "Q1A" 
-                                               & needs$section != "Q1B"],
-                               sep = '',collapse = ', '))
-                    ),
-                    p(
-                      strong("All needs:"),
-                      "This option displays all needs with a score of greater 
-                      than zero, regardless of whether they were marked as 
-                      important to the person or if they are related to a higher 
-                      risk area."
-                    )
+                  radioButtons(
+                    "pick_dom",
+                    label = "Display needs by:",
+                    choices = c("SIS Section", "QOL Domain"), 
+                    selected = "SIS Section",
+                    inline = T
+                  ),
+                  p(
+                    "The numeric scores (", em("shaded by intensity of need"),
+                    ") shown in the table are comprised of scores for the 
+                    intensity of ",
+                    em("Type"),", ", em("Frequency"), ", and ", 
+                    em("Daily Support Time"), "related to the need."
                   )
                 ),
                 tabPanel(
@@ -1705,19 +1799,14 @@ dashboardPage(
                   )
                 ),
                 tabPanel(
-                  "Relevant Services",
+                  "Recommendations",
                   p(
                     "Based on the needs identified in the SIS assessment, 
                     the following services may be relevant in helping to address 
                     identified needs:"
                   ),
-                  selectInput(
-                    "svc_typ",
-                    "Service Type",
-                    levels(codemap$ServiceType),
-                    selected = "Care Coordination"
-                  ),
-                  dataTableOutput("ipos_svs"),
+                  dataTableOutput("ind_ntwk_table"),
+                  visNetworkOutput("ind_ntwk_graph"),
                   p(
                     "The services identified here are intended to prompt 
                     consideration and dialogue.  They are not intended to imply 
@@ -1950,103 +2039,114 @@ dashboardPage(
             )
           )
         )
-      )#,
-      # tabItem(
-      #   tabName = "data_quality",
-      #   fluidRow(
-      #     column(
-      #       width = 12,
-      #       box(
-      #         title = "Data Quality Issues", 
-      #         status = "warning",
-      #         collapsible = TRUE, 
-      #         collapsed = FALSE,
-      #         width = NULL,
-      #         tabBox(
-      #           width = NULL,
-      #           tabPanel(
-      #             "Missing or Incorrect Entries",
-      #             radioButtons(
-      #               "current",
-      #               label = "Display:",
-      #               choices = c("Current assessors", "All Assessors"), 
-      #               selected = "Current assessors",
-      #               inline = T
-      #             ),
-      #             dataTableOutput("dt_datqual")
-      #           ),
-      #           tabPanel(
-      #             "About",
-      #             p(
-      #               strong("Unmatched Mcaid IDs"), "counts the number of 
-      #               instances in which the Medicaid ID from the SIS data does 
-      #               not match with the attribution file."
-      #             ),
-      #             p(
-      #               strong("Missing Start Time"), "and", strong("Missing End Time"),
-      #               "count the number of times that no start/end time was entered 
-      #               for the assessment, thereby making it impossible to 
-      #               calculate the duration of the assessment."
-      #             ),
-      #             p(
-      #               strong("Missing Reason"), 
-      #               "counts the number of instances in which no reason was given 
-      #               for the completion of the SIS assessment.  Available reasons 
-      #               include:", 
-      #               em("Change in situation, First SIS, or Regularly scheduled 
-      #                  assessment")
-      #             ),
-      #             p(
-      #               strong("No Intrvw Setting"),
-      #               "counts the number of instances in which the interview 
-      #               setting was not specified for the SIS assessment."
-      #             ),
-      #             p(
-      #               strong("Missing Supports Info"),
-      #               "counts the number of instances in which information was 
-      #               missing from the initial entry field for ", 
-      #               em("Supports Relation Type."), " While multiple supports 
-      #               can be recorded on the SIS assessment, there is no way of 
-      #               knowing the actual number of supports that the individual 
-      #               was receiving using the SIS data alone.  This count assumes 
-      #               that individuals had at least one support at the time of 
-      #               the interview."
-      #             ),
-      #             p(
-      #               strong("Missing Respondents"),
-      #               "counts the number of instances in which information was 
-      #               missing from the initial entry field for ", 
-      #               em("Respondent Relation Type."), " While multiple respondents 
-      #               can be recorded on the SIS assessment, there is no way of 
-      #               knowing the actual number of respondents that were present 
-      #               using the SIS data alone.  This count assumes that 
-      #               individuals had at least one respondent present for the 
-      #               interview."
-      #             ),
-      #             p(
-      #               strong("State other than MI"),
-      #               "counts the number of times that a state other than Michigan 
-      #               was identified as the living address of the person being 
-      #               assessed.  This is one of a number of issues with data entry 
-      #               that may make it difficult to correctly map proximity to 
-      #               nearby resources."
-      #             ),
-      #             p(
-      #               strong("No Important To"),
-      #               "counts the number of assessments where no items were marked 
-      #               as ", em("important to"), " the person being assessed."
-      #             ),
-      #             p(
-      #               strong("No Important For"),
-      #               "counts the number of assessments where no items were marked 
-      #               as ", em("important for"), " the person being assessed."
-      #             )
-      #           )
-      #         )
-      #       )
-      #     )
-      #   )
-      # )
+      ),
+      tabItem(
+        tabName = "docs",
+        fluidRow(
+          column(
+            width = 12,
+            uiOutput("sis_docs")
+          )
+        )
+      ),
+      tabItem(
+        tabName = "data_quality",
+        fluidRow(
+          column(
+            width = 12,
+            box(
+              title = "Data Quality Issues",
+              status = "warning",
+              collapsible = TRUE,
+              collapsed = FALSE,
+              width = NULL,
+              tabBox(
+                width = NULL,
+                tabPanel(
+                  "Missing or Incorrect Entries",
+                  radioButtons(
+                    "current",
+                    label = "Display:",
+                    choices = c("Current assessors", "All Assessors"),
+                    selected = "Current assessors",
+                    inline = T
+                  ),
+                  dataTableOutput("dt_datqual")
+                ),
+                tabPanel(
+                  "About",
+                  p(
+                    strong("Unmatched Mcaid IDs"), "counts the number of
+                    instances in which the Medicaid ID from the SIS data does
+                    not match with the attribution file."
+                  ),
+                  p(
+                    strong("Missing Start Time"), "and", strong("Missing End Time"),
+                    "count the number of times that no start/end time was entered
+                    for the assessment, thereby making it impossible to
+                    calculate the duration of the assessment."
+                  ),
+                  p(
+                    strong("Missing Reason"),
+                    "counts the number of instances in which no reason was given
+                    for the completion of the SIS assessment.  Available reasons
+                    include:",
+                    em(
+                      "Change in situation, First SIS, or Regularly scheduled 
+                      assessment"
+                    )
+                  ),
+                  p(
+                    strong("No Intrvw Setting"),
+                    "counts the number of instances in which the interview
+                    setting was not specified for the SIS assessment."
+                  ),
+                  p(
+                    strong("Missing Supports Info"),
+                    "counts the number of instances in which information was
+                    missing from the initial entry field for ",
+                    em("Supports Relation Type."), " While multiple supports
+                    can be recorded on the SIS assessment, there is no way of
+                    knowing the actual number of supports that the individual
+                    was receiving using the SIS data alone.  This count assumes
+                    that individuals had at least one support at the time of
+                    the interview."
+                  ),
+                  p(
+                    strong("Missing Respondents"),
+                    "counts the number of instances in which information was
+                    missing from the initial entry field for ",
+                    em("Respondent Relation Type."), " While multiple respondents
+                    can be recorded on the SIS assessment, there is no way of
+                    knowing the actual number of respondents that were present
+                    using the SIS data alone.  This count assumes that
+                    individuals had at least one respondent present for the
+                    interview."
+                  ),
+                  p(
+                    strong("State other than MI"),
+                    "counts the number of times that a state other than Michigan
+                    was identified as the living address of the person being
+                    assessed.  This is one of a number of issues with data entry
+                    that may make it difficult to correctly map proximity to
+                    nearby resources."
+                  ),
+                  p(
+                    strong("No Important To"),
+                    "counts the number of assessments where no items were marked
+                    as ", em("important to"), " the person being assessed."
+                  ),
+                  p(
+                    strong("No Important For"),
+                    "counts the number of assessments where no items were marked
+                    as ", em("important for"), " the person being assessed."
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
     )
   )
 )
