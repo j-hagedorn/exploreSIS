@@ -332,132 +332,6 @@
         
       })
       
-      rand_id <- eventReactive(input$id_drop, {
-        # Select a random ID when button is selected
-        sample(s1_3Input()$fake_id, size = 1, replace = F)
-      })
-      
-      ind_svs <- reactive({
-        
-        # Limit results to selected individual ID
-        df <- s1_3Input() %>% filter(fake_id == rand_id())
-        
-        # Filter needs displayed based on user selection
-        if ( input$filter_ipos == "Important to or for this person") {
-          df %<>% filter(import_to == T | import_for == T) 
-        } else if (input$filter_ipos == "Important to/for, or in a higher risk area") {
-          df %<>% filter(import_to == T | import_for == T | need_svc == T)
-        } else if (input$filter_ipos == "All needs") {
-          df <- df
-        } else print(paste0("Error.  Unrecognized input."))
-        
-        df %<>%
-          # Identify areas with identified need (>0)
-          filter(score > 0) %>%
-          group_by(fake_id) %>%
-          # Use only most recent SIS assessment scores
-          filter(as.Date(sis_date) == max(as.Date(sis_date))) %>%
-          ungroup() %>%
-          select(
-            section,section_desc,qol,item,item_desc,
-            score,type,frequency,DST,importance
-          ) %>%
-          mutate(
-            approx_min = dplyr::recode(
-              DST,
-              `None` = 0,
-              `Under 30 min` = 15,
-              `Under 2 hrs` = 75,
-              `2-4 hrs` = 180,
-              `Over 4 hrs` = 360
-            ),
-            x_per_month = dplyr::recode(
-              frequency,
-              `Minimal` = 0.5,
-              # Monthly: at least once a month, but not once a week i.e. (1 + 4.34524) / 2
-              `Monthly` = 2.67262,
-              # Weekly: at least once a week, but not once a day i.e. (30 + 4.34524) / 2
-              `Weekly` = 17.17262,
-              `Daily` = 30,
-              `Hourly` = 30 
-            ),
-            est_hrs_per_mo = round((approx_min / 60) * x_per_month, digits = 1)
-          ) %>%
-          left_join(need_to_hcpcs, by = "item") %>%
-          select(-approx_min,-x_per_month) %>%
-          group_by(item) %>%
-          gather(
-            HCPCS,need_mapped,everything(),
-            # Don't gather grouping vars
-            -section,-section_desc,-qol,-item,-item_desc,-score,
-            -type,-frequency,-DST,-importance,-est_hrs_per_mo
-          ) %>%
-          filter(need_mapped == T) %>%
-          ungroup() %>%
-          left_join(codemap, by = "HCPCS") %>%
-          # Calculate number of rows (i.e. needs) addressed by each service
-          group_by(HCPCS) %>%
-          mutate(
-            deg_to = n(),
-            cost_hr = med_unitcost / unit_hrs
-          ) %>%
-          ungroup()
-        
-        if ( input$filter_community_based == "An independent community-based setting") {
-          df %<>% 
-            filter(
-              !HCPCS %in% c(
-                # Residential settings
-                "H2016","T1020",
-                # Non-residential
-                "H2014","T2015"
-              )
-            ) 
-        } else if (input$filter_community_based == "A congregate facility-based setting is also acceptable") {
-          df
-        } else print(paste0("Error.  Unrecognized input."))
-        
-      })
-      
-      ind_svs_filt <- reactive({
-        
-        if (input$filter_ntwk_type == "The simplest set of services to address my needs") {
-          ind_svs() %>%
-            # For each need item, select only the HCPCS with greatest # of needs (deg_to)
-            group_by(item) %>%
-            filter(deg_to == max(deg_to)) %>%
-            # When there are multiple services with equal related needs, pick lowest median unit cost
-            filter(cost_hr == min(cost_hr))
-        } else if (input$filter_ntwk_type == "All services which might be relevant") {
-          ind_svs() %>%
-            # Divide est hrs needed evenly across each potential service related to that need
-            group_by(item) %>%
-            mutate(est_hrs_per_mo = est_hrs_per_mo / n() ) %>%
-            ungroup()
-        } else print(paste0("Error.  Unrecognized input."))
-        
-      })
-      
-      ind_ntwk <- reactive({
-        
-        ind_svs_filt() %>%
-          # Convert to network format
-          select(
-            from = item_desc,
-            to = short_desc,
-            score,
-            est_hrs_per_mo
-          ) %>%
-          group_by(from,to) %>%
-          summarize(
-            score = max(score),
-            est_hrs_per_mo = max(est_hrs_per_mo),
-            n = n()
-          ) %>%
-          to_network()
-        
-      })
-      
       ## REACTIVE UI ELEMENTS #### 
       
       output$valid_date <- renderText({
@@ -597,7 +471,7 @@
         
         actionButton("id_drop", "Select new")
         
-       })
+      })
       
       output$k_vars <- renderUI({
         
@@ -807,7 +681,7 @@
           icon = icon("check"),
           color = "teal"
         )
-        
+
       })
       
       output$bymonth <- renderPlotly({
@@ -2064,6 +1938,7 @@
                          DT_in %<>% rename(domain = section_desc)
                        } else if (input$pick_dom == "QOL Domain") {
                          DT_in %<>% rename(domain = qol)
+
                        } else
                          print(paste0("Error.  Unrecognized input."))
                        
@@ -2382,6 +2257,7 @@
         
       })
       
+
       output$need_scree <- renderPlotly({
         
         scree <- function(df) {

@@ -11,12 +11,16 @@ q2_tos <-
   ungroup() %>% droplevels() %>%
   select(fake_id,PIHP,agency,sis_date,ends_with("tos")) %>% 
   select(fake_id,PIHP,agency,sis_date,starts_with("Q2")) %>%
-  mutate_each(funs(as.character), -fake_id, -PIHP, -agency, -sis_date) %>%
+  mutate_at(
+    .funs = funs(as.character), 
+    .vars = vars(starts_with("Q2"))
+  ) %>%
   gather(item, tos, Q2A1_TOS:Q2F8_TOS) %>%
   rename(type = tos) %>%
-  mutate(type_n = as.numeric(type),
-         item = gsub("TOS","",item),
-         id = as.factor(paste0(fake_id,item))
+  mutate(
+    type_n = as.numeric(type),
+    item = gsub("TOS","",item),
+    id = as.factor(paste0(fake_id,item))
   ) %>%
   group_by(id, fake_id, PIHP, agency, sis_date, item, type) %>%
   summarize(n = n_distinct(id),
@@ -31,7 +35,10 @@ q2_fqy <-
   ungroup() %>% droplevels() %>%
   select(fake_id, PIHP, agency, sis_date,ends_with("Fqy")) %>% 
   select(fake_id, PIHP, agency, sis_date, starts_with("Q2")) %>%
-  mutate_each(funs(as.character), -fake_id, -PIHP, -agency, -sis_date) %>%
+  mutate_at(
+    .funs = funs(as.character), 
+    .vars = vars(starts_with("Q2"))
+  ) %>%
   gather(item, fqy, Q2A1_Fqy:Q2F8_Fqy) %>%
   rename(frequency = fqy) %>%
   mutate(frequency_n = as.numeric(frequency),
@@ -50,7 +57,10 @@ q2_dst <-
   ungroup() %>% droplevels() %>%
   select(fake_id, PIHP, agency, sis_date, ends_with("DST")) %>% 
   select(fake_id, PIHP, agency, sis_date, starts_with("Q2")) %>%
-  mutate_each(funs(as.character), -fake_id, -PIHP, -agency, -sis_date) %>%
+  mutate_at(
+    .funs = funs(as.character), 
+    .vars = vars(starts_with("Q2"))
+  ) %>%
   gather(item, dst, Q2A1_DST:Q2F8_DST) %>%
   rename(DST = dst) %>%
   mutate(DST_n = as.numeric(DST),
@@ -69,7 +79,10 @@ q2_to <-
   ungroup() %>% droplevels() %>%
   select(fake_id, PIHP, agency,sis_date,ends_with("ImportantTo")) %>% 
   select(fake_id, PIHP, agency,sis_date,starts_with("Q2")) %>%
-  mutate_each(funs(as.character), -fake_id, -PIHP, -agency, -sis_date) %>%
+  mutate_at(
+    .funs = funs(as.character), 
+    .vars = vars(starts_with("Q2"))
+  ) %>%
   gather(item, import_to, Q2A1_ImportantTo:Q2F8_ImportantTo) %>%
   mutate(import_to_n = as.numeric(import_to),
          item = gsub("ImportantTo","",item),
@@ -88,7 +101,10 @@ q2_for <-
   ungroup() %>% droplevels() %>%
   select(fake_id,PIHP, agency,sis_date,ends_with("ImportantFor")) %>% 
   select(fake_id,PIHP, agency,sis_date,starts_with("Q2")) %>%
-  mutate_each(funs(as.character), -fake_id, -PIHP, -agency, -sis_date) %>%
+  mutate_at(
+    .funs = funs(as.character), 
+    .vars = vars(starts_with("Q2"))
+  ) %>%
   gather(item, import_for, Q2A1_ImportantFor:Q2F8_ImportantFor) %>%
   mutate(import_for_n = as.numeric(import_for),
          item = gsub("ImportantFor","",item),
@@ -164,7 +180,10 @@ q3_tos <-
   ungroup() %>% droplevels() %>%
   select(fake_id,PIHP,agency,sis_date,ends_with("TOS")) %>% 
   select(fake_id,PIHP,agency,sis_date,starts_with("Q3")) %>%
-  mutate_each(funs(as.character), -fake_id, -PIHP, -agency, -sis_date) %>%
+  mutate_at(
+    .funs = funs(as.character), 
+    .vars = vars(starts_with("Q3"))
+  ) %>%
   gather(item, tos, Q3A1_TOS:Q3A8_TOS) %>%
   rename(type = tos) %>%
   mutate(type_n = as.numeric(type),
@@ -184,7 +203,10 @@ q3_fqy <-
   ungroup() %>% droplevels() %>%
   select(fake_id, PIHP, agency, sis_date, ends_with("Fqy")) %>% 
   select(fake_id, PIHP, agency, sis_date, starts_with("Q3")) %>%
-  mutate_each(funs(as.character), -fake_id, -PIHP, -agency, -sis_date) %>%
+  mutate_at(
+    .funs = funs(as.character), 
+    .vars = vars(starts_with("Q3"))
+  ) %>%
   gather(item, fqy, Q3A1_Fqy:Q3A8_Fqy) %>%
   rename(frequency = fqy) %>%
   mutate(frequency_n = as.numeric(frequency),
@@ -203,7 +225,10 @@ q3_dst <-
   ungroup() %>% droplevels() %>%
   select(fake_id, PIHP, agency, sis_date, ends_with("DST")) %>% 
   select(fake_id, PIHP, agency, sis_date, starts_with("Q3")) %>%
-  mutate_each(funs(as.character), -fake_id, -PIHP, -agency, -sis_date) %>%
+  mutate_at(
+    .funs = funs(as.character), 
+    .vars = vars(starts_with("Q3"))
+  ) %>%
   gather(item, dst, Q3A1_DST:Q3A8_DST) %>%
   rename(DST = dst) %>%
   mutate(DST_n = as.numeric(DST),
@@ -222,7 +247,10 @@ q3_to <-
   ungroup() %>% droplevels() %>%
   select(fake_id,PIHP,agency,sis_date,ends_with("ImportantTo")) %>% 
   select(fake_id,PIHP,agency,sis_date,starts_with("Q3")) %>%
-  mutate_each(funs(as.character), -fake_id, -PIHP, -agency, -sis_date) %>%
+  mutate_at(
+    .funs = funs(as.character), 
+    .vars = vars(starts_with("Q3"))
+  ) %>%
   gather(item, import_to, Q3A1_ImportantTo:Q3A8_ImportantTo) %>%
   mutate(import_to_n = as.numeric(import_to),
          item = gsub("ImportantTo","",item),
@@ -241,7 +269,10 @@ q3_for <-
   ungroup() %>% droplevels() %>%
   select(fake_id,PIHP,agency,sis_date,ends_with("ImportantFor")) %>% 
   select(fake_id,PIHP,agency,sis_date,starts_with("Q3")) %>%
-  mutate_each(funs(as.character), -fake_id, -PIHP, -agency, -sis_date) %>%
+  mutate_at(
+    .funs = funs(as.character), 
+    .vars = vars(starts_with("Q3"))
+  ) %>%
   gather(item, import_for, Q3A1_ImportantFor:Q3A8_ImportantFor) %>%
   mutate(import_for_n = as.numeric(import_for),
          item = gsub("ImportantFor","",item),
@@ -309,5 +340,7 @@ q3 <-
                                            "Not endorsed")))) %>%
   select(-import_to_n, -import_for_n, -n)
 
-saveRDS(q2,"data/q2.rds")
-saveRDS(q3,"data/q3.rds")
+library(feather)
+write_feather(q2,"data/q2.feather")
+write_feather(q3,"data/q3.feather")
+
