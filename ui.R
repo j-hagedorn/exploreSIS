@@ -1414,7 +1414,7 @@ dashboardPage(
                   "Productivity Trends",
                   radioButtons(
                     "metric",
-                    label = "Select a productivty metric:",
+                    label = "Select a productivity metric:",
                     choices = c("# of Assessments","% of Total","Average Hours"),
                     selected = "# of Assessments",
                     inline = T
@@ -1446,6 +1446,24 @@ dashboardPage(
                     br(),
                     strong("# of Assessments: "),
                     "The total number of assessments completed for the given week."
+                  ),
+                  br(),
+                  h4("Range Selector..."),
+                  p(
+                    "Use the the slider along the x-axis to created a customized
+                    view of the chart for a desired time period. The buttons 
+                    in the top left corner of the chart can be used to quickly
+                    zoom into the predefined timeframes: ",
+                    br(),
+                    strong("2 mo: "), "the previous two months",
+                    br(),
+                    strong("6 mo: "), "the previous six months",
+                    br(),
+                    strong("1 yr: "), "the previous twelve months",
+                    br(),
+                    strong("YTD: "), "calendar year-to-date",
+                    br(),
+                    strong("All: "), "the entire time range"
                   )
                 )
               )
