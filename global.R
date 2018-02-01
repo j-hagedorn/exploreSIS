@@ -29,9 +29,6 @@
 # Load de-identified data
   scrub_sis <- read_feather("data/scrub_sis.feather")
   
-# Change sis_date from factor to date
-  scrub_sis$sis_date <- as.Date(scrub_sis$sis_date, format="%Y-%m-%d")
-
 # Get most recent SIS score
   most_recent <- max(as.Date(scrub_sis$sis_date)[as.Date(scrub_sis$sis_date) <= Sys.Date()])
     
@@ -66,6 +63,7 @@
     mutate(HCPCS = as.character(HCPCS))
 
 # Load transformed dfs to break down TOS
+
   q2 <- read_feather("data/q2.feather")
   q3 <- read_feather("data/q3.feather")
     

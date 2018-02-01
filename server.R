@@ -90,6 +90,7 @@
           # Filter out expired assessments as of due date (> 3 yrs old)
           filter(as.Date(due) - as.Date(sis_date) <= (365 * 3)) %>%
           droplevels()
+        
         completed <- nlevels(as.factor(completed$fake_id))
         
         total_needed <- 
@@ -106,12 +107,14 @@
           summarize(overdue = sum(overdue, na.rm = T))
         
         # Output as named list
-        list(avg_per_wk = avg_per_wk,
-             recent_int = recent_int,
-             avg_person_wk = avg_person_wk,
-             completed = completed,
-             overdue = overdue[1,1],
-             total_needed = total_needed[1,1])
+        list(
+          avg_per_wk = avg_per_wk,
+          recent_int = recent_int,
+          avg_person_wk = avg_person_wk,
+          completed = completed,
+          overdue = overdue[1,1],
+          total_needed = total_needed[1,1]
+        )
         
       })
       
@@ -288,11 +291,16 @@
           group_by(interviewer,week) %>%
           summarize(
             duration_hrs = sum(duration, na.rm = T)/60,
-            assessments = n(),
-            hr_per_assess = duration_hrs/assessments) %>%
+            assessments = n()
+          ) %>%
+          mutate(
+            hr_per_assess = duration_hrs/assessments
+          ) %>%
           group_by(week) %>%
-          mutate(pct = round(assessments/sum(assessments)*100,digits = 2),
-                 running = order_by(interviewer, cumsum(pct))) %>%
+          mutate(
+            pct = round(assessments/sum(assessments)*100,digits = 2),
+            running = order_by(interviewer, cumsum(pct))
+          ) %>%
           ungroup()
         
       })
@@ -329,6 +337,132 @@
         
         clusterInput() %>% 
           kmeans(centers = input$need_rows)
+        
+      })
+      
+      rand_id <- eventReactive(input$id_drop, {
+        # Select a random ID when button is selected
+        sample(s1_3Input()$fake_id, size = 1, replace = F)
+      })
+      
+      ind_svs <- reactive({
+        
+        # Limit results to selected individual ID
+        df <- s1_3Input() %>% filter(fake_id == rand_id())
+        
+        # Filter needs displayed based on user selection
+        if ( input$filter_ipos == "Important to or for this person") {
+          df %<>% filter(import_to == T | import_for == T) 
+        } else if (input$filter_ipos == "Important to/for, or in a higher risk area") {
+          df %<>% filter(import_to == T | import_for == T | need_svc == T)
+        } else if (input$filter_ipos == "All needs") {
+          df <- df
+        } else print(paste0("Error.  Unrecognized input."))
+        
+        df %<>%
+          # Identify areas with identified need (>0)
+          filter(score > 0) %>%
+          group_by(fake_id) %>%
+          # Use only most recent SIS assessment scores
+          filter(as.Date(sis_date) == max(as.Date(sis_date))) %>%
+          ungroup() %>%
+          select(
+            section,section_desc,qol,item,item_desc,
+            score,type,frequency,DST,importance
+          ) %>%
+          mutate(
+            approx_min = dplyr::recode(
+              DST,
+              `None` = 0,
+              `Under 30 min` = 15,
+              `Under 2 hrs` = 75,
+              `2-4 hrs` = 180,
+              `Over 4 hrs` = 360
+            ),
+            x_per_month = dplyr::recode(
+              frequency,
+              `Minimal` = 0.5,
+              # Monthly: at least once a month, but not once a week i.e. (1 + 4.34524) / 2
+              `Monthly` = 2.67262,
+              # Weekly: at least once a week, but not once a day i.e. (30 + 4.34524) / 2
+              `Weekly` = 17.17262,
+              `Daily` = 30,
+              `Hourly` = 30 
+            ),
+            est_hrs_per_mo = round((approx_min / 60) * x_per_month, digits = 1)
+          ) %>%
+          left_join(need_to_hcpcs, by = "item") %>%
+          select(-approx_min,-x_per_month) %>%
+          group_by(item) %>%
+          gather(
+            HCPCS,need_mapped,everything(),
+            # Don't gather grouping vars
+            -section,-section_desc,-qol,-item,-item_desc,-score,
+            -type,-frequency,-DST,-importance,-est_hrs_per_mo
+          ) %>%
+          filter(need_mapped == T) %>%
+          ungroup() %>%
+          left_join(codemap, by = "HCPCS") %>%
+          # Calculate number of rows (i.e. needs) addressed by each service
+          group_by(HCPCS) %>%
+          mutate(
+            deg_to = n(),
+            cost_hr = med_unitcost / unit_hrs
+          ) %>%
+          ungroup()
+        
+        if ( input$filter_community_based == "An independent community-based setting") {
+          df %<>% 
+            filter(
+              !HCPCS %in% c(
+                # Residential settings
+                "H2016","T1020",
+                # Non-residential
+                "H2014","T2015"
+              )
+            ) 
+        } else if (input$filter_community_based == "A congregate facility-based setting is also acceptable") {
+          df
+        } else print(paste0("Error.  Unrecognized input."))
+        
+      })
+      
+      ind_svs_filt <- reactive({
+        
+        if (input$filter_ntwk_type == "The simplest set of services to address my needs") {
+          ind_svs() %>%
+            # For each need item, select only the HCPCS with greatest # of needs (deg_to)
+            group_by(item) %>%
+            filter(deg_to == max(deg_to)) %>%
+            # When there are multiple services with equal related needs, pick lowest median unit cost
+            filter(cost_hr == min(cost_hr))
+        } else if (input$filter_ntwk_type == "All services which might be relevant") {
+          ind_svs() %>%
+            # Divide est hrs needed evenly across each potential service related to that need
+            group_by(item) %>%
+            mutate(est_hrs_per_mo = est_hrs_per_mo / n() ) %>%
+            ungroup()
+        } else print(paste0("Error.  Unrecognized input."))
+        
+      })
+      
+      ind_ntwk <- reactive({
+        
+        ind_svs_filt() %>%
+          # Convert to network format
+          select(
+            from = item_desc,
+            to = short_desc,
+            score,
+            est_hrs_per_mo
+          ) %>%
+          group_by(from,to) %>%
+          summarize(
+            score = max(score),
+            est_hrs_per_mo = max(est_hrs_per_mo),
+            n = n()
+          ) %>%
+          to_network()
         
       })
       
@@ -471,7 +605,7 @@
         
         actionButton("id_drop", "Select new")
         
-      })
+       })
       
       output$k_vars <- renderUI({
         
@@ -681,7 +815,7 @@
           icon = icon("check"),
           color = "teal"
         )
-
+        
       })
       
       output$bymonth <- renderPlotly({
@@ -1247,14 +1381,14 @@
         filtre <- if (input$select_area_q2 == "All") {
           levels(as.factor(sec2Input()$item_desc))
         } else 
-          levels(droplevels(as.factor(sec2Input()$item_desc[sec2Input()$section_desc == input$select_area_q2])))
-        
+          unique(sec2Input()$item_desc[sec2Input()$section_desc == input$select_area_q2])
+
         region_filt <- if (input$region == "All") {
-          levels(sec2Input()$PIHP)
+          unique(sec2Input()$PIHP)
         } else input$region
         
         agency_filt <- if (input$agency == "All") {
-          levels(sec2Input()$agency)
+          unique(sec2Input()$agency[sec2Input()$PIHP == input$region])
         } else input$agency
         
         
@@ -1269,7 +1403,8 @@
             summarize(avg = round(mean(score, na.rm = T), digits = 1)) %>%
             spread(PIHP, avg, drop = FALSE)
           
-          dt_in <-sec2Input() %>%
+          dt_in <-
+            sec2Input() %>%
             filter(item_desc %in% filtre) %>%
             group_by(item_desc) %>%
             summarize(avg = round(mean(score, na.rm = T), digits = 1),
@@ -1286,11 +1421,13 @@
             sec2Input() %>%
             filter(PIHP %in% region_filt) %>%
             filter(item_desc %in% filtre) %>%
+            droplevels() %>%
             group_by(agency, item_desc) %>%
             summarize(avg = round(mean(score, na.rm = T), digits = 1)) %>%
             spread(agency, avg, drop = FALSE)
           
-          dt_in <-sec2Input() %>%
+          dt_in <-
+            sec2Input() %>%
             filter(PIHP %in% region_filt) %>%
             filter(item_desc %in% filtre) %>%
             group_by(item_desc) %>%
@@ -1310,6 +1447,7 @@
             group_by(agency, item_desc) %>%
             summarize(avg = round(mean(score, na.rm = T), digits = 1)) %>%
             filter(agency == input$agency) %>%
+            droplevels() %>%
             spread(agency, avg, drop = FALSE)
           
           dt_in <-
@@ -1319,7 +1457,8 @@
             group_by(item_desc) %>%
             summarize(avg = round(mean(score, na.rm = T), digits = 1)) %>% 
             left_join(df, id = "item_desc") %>%
-            mutate(differ = .[[3]] - .[[2]]) %>% # use col indices since names change
+            # use col indices since names change
+            mutate(differ = round(.[[3]] - .[[2]], digits = 1)) %>% 
             rename(All.Others = avg, Difference = differ, Item = item_desc) %>%
             arrange(desc(Difference))
           
@@ -1880,20 +2019,55 @@
       output$int_prod <- renderPlotly({
         
         if(input$metric == "% of Total") {
-        
-        lineInput() %>%
-          plot_ly(x = ~week, y = ~pct, color = ~interviewer,
-                  hoverinfo = 'text',
-                  text = ~paste(pct, "percent of assessments were completed by",
-                                interviewer, "in the week of",week)) %>%
-          add_lines(y = ~pct) %>%
-          layout(
-            title = "Percent of Total Assessments Completed by Interviewer",
-            xaxis = list(title = "Week"),
-            yaxis = list(title = "Percent of Total Assessments Completed")
-          )
+          
+          max_y <- max(lineInput()$pct, na.rm = T)+max(lineInput()$pct*.1)
+          
+          lineInput() %>%
+            plot_ly(x = ~week, y = ~pct, color = ~interviewer,
+                    hoverinfo = 'text',
+                    text = ~paste(pct, "percent of assessments were completed by",
+                                  interviewer, "in the week of",week)) %>%
+            add_lines(y = ~pct) %>%
+            layout(
+              title = "% of Assessments",
+              xaxis = list(
+                title = "Week",
+                rangeselector = list(
+                  buttons = list(
+                    list(
+                      count = 2,
+                      label = "2 mo",
+                      step = "month",
+                      stepmode = "backward"),
+                    list(
+                      count = 6,
+                      label = "6 mo",
+                      step = "month",
+                      stepmode = "backward"),
+                    list(
+                      count = 1,
+                      label = "1 yr",
+                      step = "year",
+                      stepmode = "backward"),
+                    list(
+                      count = 1,
+                      label = "YTD",
+                      step = "year",
+                      stepmode = "todate"),
+                    list(
+                      label = "All",
+                      step = "all")
+                    )),
+                
+                rangeslider = list(type = "date")
+              ),
+              
+              yaxis = list(title = "Percent of Total Assessments Completed",
+                           range = c(0, max_y)))
           
         } else if(input$metric == "Average Hours"){
+          
+          max_y <- max(lineInput()$hr_per_assess, na.rm = T)+max(lineInput()$hr_per_assess*.1)
           
           lineInput() %>%
             plot_ly(x = ~week, y= ~hr_per_assess, color = ~interviewer,
@@ -1902,12 +2076,45 @@
                                   "hours per assessment in the week of",week)) %>%
             add_lines(y = ~hr_per_assess) %>%
             layout(
-              title = "Average Hours Spent Per Assessment by Interviewer",
-              xaxis = list(title = 'Week'),
-              yaxis = list(title = 'Hours per Assessment')
-            )
+              title = "Average Hours",
+              xaxis = list(
+                title = 'Week',
+                           rangeselector = list(
+                             buttons = list(
+                               list(
+                                 count = 2,
+                                 label = "2 mo",
+                                 step = "month",
+                                 stepmode = "backward"),
+                               list(
+                                 count = 6,
+                                 label = "6 mo",
+                                 step = "month",
+                                 stepmode = "backward"),
+                               list(
+                                 count = 1,
+                                 label = "1 yr",
+                                 step = "year",
+                                 stepmode = "backward"),
+                               list(
+                                 count = 1,
+                                 label = "YTD",
+                                 step = "year",
+                                 stepmode = "todate"),
+                               list(
+                                 label = "All",
+                                 step = "all")
+                               )),
+                           
+                           rangeslider = list(type = "date")
+                           ),
+              
+              yaxis = list(title = 'Hours per Assessment',
+                           range = c(0, max_y)))
           
         } else if(input$metric == "# of Assessments"){
+          
+          max_y <- max(lineInput()$assessments, na.rm = T)+max(lineInput()$assessments*.1)
           
           lineInput() %>%
           plot_ly(x = ~week, y= ~assessments, color = ~interviewer,
@@ -1916,10 +2123,40 @@
                                 interviewer, "in the week of",week)) %>%
           add_lines(y = ~assessments) %>%
           layout(
-            title = "Number of Assessments Completed by Interviewer",
-            xaxis = list(title = 'Week'),
-            yaxis = list(title = 'Assessments Completed')
-          )
+            title = "Number of Assessments",
+            xaxis = list(title = 'Week',
+                         rangeselector = list(
+                           buttons = list(
+                             list(
+                               count = 2,
+                               label = "2 mo",
+                               step = "month",
+                               stepmode = "backward"),
+                             list(
+                               count = 6,
+                               label = "6 mo",
+                               step = "month",
+                               stepmode = "backward"),
+                             list(
+                               count = 1,
+                               label = "1 yr",
+                               step = "year",
+                               stepmode = "backward"),
+                             list(
+                               count = 1,
+                               label = "YTD",
+                               step = "year",
+                               stepmode = "todate"),
+                             list(
+                               label = "All",
+                               step = "All")
+                             )),
+                           
+                           rangeslider = list(type = "date")
+            ),
+            
+            yaxis = list(title = 'Assessments Completed',
+                         range = c(0, max_y)))
           
         }
         
@@ -1938,7 +2175,6 @@
                          DT_in %<>% rename(domain = section_desc)
                        } else if (input$pick_dom == "QOL Domain") {
                          DT_in %<>% rename(domain = qol)
-
                        } else
                          print(paste0("Error.  Unrecognized input."))
                        
@@ -2257,7 +2493,6 @@
         
       })
       
-
       output$need_scree <- renderPlotly({
         
         scree <- function(df) {
