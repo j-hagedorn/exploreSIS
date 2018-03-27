@@ -5,7 +5,7 @@
 # Make an ID key
 mcaid_id <- unique(sub_sis$mcaid_id)
 sis_key <- data.frame(mcaid_id)
-sis_key$fake_id <- sample(x = 100000001:999999999, 
+sis_key$fake_id <- sample(x = 10000001:11000001, 
                           size = length(sis_key$mcaid_id), 
                           replace = FALSE)
 sis_key$mcaid_id <- as.character(sis_key$mcaid_id)
