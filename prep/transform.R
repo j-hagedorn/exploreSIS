@@ -169,7 +169,7 @@ rm(q2_dst); rm(q2_fqy); rm(q2_tos); rm(q2_to); rm(q2_for)
 q2 %<>%
   left_join(needs, by = "item") %>% # add item level desc and groups
   mutate(
-    type = recode(
+    type = dplyr::recode(
       type,
       `0` = 'None',
       `1` = 'Monitoring',
@@ -177,7 +177,7 @@ q2 %<>%
       `3` = 'Partial Physical Assistance',
       `4` = 'Full Physical Support'
     ),
-    frequency = recode(
+    frequency = dplyr::recode(
       frequency,
       `0` = 'Minimal',
       `1` = 'Monthly',
@@ -185,7 +185,7 @@ q2 %<>%
       `3` = 'Daily',
       `4` = 'Hourly'
     ),
-    DST = recode(
+    DST = dplyr::recode(
       DST,
       `0` = 'None',
       `1` = 'Under 30 min',
@@ -203,7 +203,7 @@ q2 %<>%
       import_to == F & import_for == F ~ "Not Endorsed"
     )
   ) %>%
-  select(-import_to_n, -import_for_n, -n) %>%
+  select(-n) %>%
   droplevels()
 
 # Process Section 3: Protection and Advocacy
@@ -370,7 +370,7 @@ rm(q3_dst); rm(q3_fqy); rm(q3_tos); rm(q3_to); rm(q3_for)
 q3 %<>%
   left_join(needs, by = "item") %>% # add item level desc and groups
   mutate(
-    type = recode(
+    type = dplyr::recode(
       type,
       `0` = 'None',
       `1` = 'Monitoring',
@@ -378,7 +378,7 @@ q3 %<>%
       `3` = 'Partial Physical Assistance',
       `4` = 'Full Physical Support'
     ),
-    frequency = recode(
+    frequency = dplyr::recode(
       frequency,
       `0` = 'Minimal',
       `1` = 'Monthly',
@@ -386,7 +386,7 @@ q3 %<>%
       `3` = 'Daily',
       `4` = 'Hourly'
     ),
-    DST = recode(
+    DST = dplyr::recode(
       DST,
       `0` = 'None',
       `1` = 'Under 30 min',
@@ -404,7 +404,7 @@ q3 %<>%
       import_to == F & import_for == F ~ "Not Endorsed"
     )
   ) %>%
-  select(-import_to_n, -import_for_n, -n) %>%
+  select(-n) %>%
   droplevels()
 
 library(feather)
