@@ -1,12 +1,13 @@
-## global.R ##
-
-# Load fun, data, libs, source files
+  ## global.R ##
+  
+  # Load fun, data, libs, source files
   library(shinydashboard)
   library(shinythemes)
   library(DT)
   library(ggplot2)
   library(dygraphs) 
   library(parsetR)
+  library(parcoords)
   library(visNetwork)
   library(d3heatmap)
   library(dplyr)
@@ -14,6 +15,8 @@
   library(magrittr)
   library(tidyr)
   library(broom)
+  library(corrr)
+  library(viridis)
   library(googlesheets)
   library(plotly)
   library(xts)
@@ -21,18 +24,19 @@
   library(RColorBrewer)
   library(car)
   library(feather)
-
-# Define begin & due dates
+  # library(msir)
+  
+  # Define begin & due dates
   begin <- as.Date("2014/07/01")
   due <- as.Date("2017/09/30")
-
-# Load de-identified data
+  
+  # Load de-identified data
   scrub_sis <- read_feather("data/scrub_sis.feather")
   
-# Get most recent SIS score
+  # Get most recent SIS score
   most_recent <- max(as.Date(scrub_sis$sis_date)[as.Date(scrub_sis$sis_date) <= Sys.Date()])
-    
-# Define current interviewer as 
+  
+  # Define current interviewer as 
   scrub_sis %<>%
     group_by(interviewer) %>%
     mutate(
@@ -40,16 +44,16 @@
     ) %>%
     ungroup()
   
-# Load totals
+  # Load totals
   totals <- read.csv("data/totals.csv")
-
-# Load needs mapping table (created by "prep/sis_mappings.R" script)
+  
+  # Load needs mapping table (created by "prep/sis_mappings.R" script)
   needs <- read.csv("data/needs.csv")
   
-# Load service mapping table (created by "prep/sis_mappings.R" script)
+  # Load service mapping table (created by "prep/sis_mappings.R" script)
   needs_matrix <- read.csv("data/needs_matrix.csv")
   
-# Transpose to allow joining by need item
+  # Transpose to allow joining by need item
   need_to_hcpcs <- needs_matrix
   rownames(need_to_hcpcs) <- need_to_hcpcs$Code
   need_to_hcpcs %<>% 
@@ -58,29 +62,32 @@
     as.data.frame()
   need_to_hcpcs$item <- rownames(need_to_hcpcs)
   
-# Load HCPCS table (created by "prep/readServices.R" script)
-  codemap <- read.csv("data/codemap.csv") %>%
+  # Load HCPCS table (created by "prep/readServices.R" script)
+  codemap <- 
+    read.csv("data/codemap.csv") %>%
     mutate(HCPCS = as.character(HCPCS))
-
-# Load transformed dfs to break down TOS
-
-  q2 <- read_feather("data/q2.feather")
-  q3 <- read_feather("data/q3.feather")
-    
-# Add color palettes
+  
+  # Load transformed dfs to break down TOS
+  
+  q1_3 <- read_feather("data/q1_3.feather")
+  # q2 <- read_feather("data/q2.feather")
+  # q3 <- read_feather("data/q3.feather")
+  # q2_3 <- q2 %>% bind_rows(q3)
+  
+  # Add color palettes
   soft_12 <- c("#c64457","#d7532a","#ae5d35","#d0ab2c","#a69743",
                "#7ac43e","#59a653","#45bc8d","#20d8fd","#725eb3",
                "#934fd0","#c04b91")
   
-    
-################################################################################ 
-# DEFINE FUNCTIONS: 
   
-# svs2sis (Service codes to SIS needs)
-
-# To get the SIS needs associated with a given HCPCS code
-# Assumes existence of needs_matrix df to map needs to svs
-# Can enter any list of HCPCS codes and fx will return related SIS needs
+  ################################################################################ 
+  # DEFINE FUNCTIONS: 
+  
+  # svs2sis (Service codes to SIS needs)
+  
+  # To get the SIS needs associated with a given HCPCS code
+  # Assumes existence of needs_matrix df to map needs to svs
+  # Can enter any list of HCPCS codes and fx will return related SIS needs
   
   svs2sis <- function(hcpcs){
     
@@ -98,9 +105,9 @@
   
   # Example: 
   # res_svs <- svs2sis(c("T1020","H2016"))  
-
-## to_network()
-## Function to convert df to network data format ####
+  
+  ## to_network()
+  ## Function to convert df to network data format ####
   
   to_network <- function(df){
     

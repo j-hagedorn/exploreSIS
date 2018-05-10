@@ -12,7 +12,7 @@ dashboardPage(
         icon = icon("line-chart")
       ),
       menuItem(
-        "Population Summary", 
+        "Support Needs", 
         tabName = "support", 
         icon = icon("life-ring")
       ),
@@ -27,19 +27,19 @@ dashboardPage(
         icon = icon("cubes")
       ),
       menuItem(
-        "Compare Raters",
-        tabName = "inter_rater",
-        icon = icon("chain-broken")
+        "Related Life Areas", 
+        tabName = "relate", 
+        icon = icon("copy")
       ),
       menuItem(
         "Use in Planning", 
         tabName = "planning", 
-        icon = icon("paper-plane")
+        icon = icon("compass")
       ),
       menuItem(
-        "Data Quality",
-        tabName = "data_quality",
-        icon = icon("database")
+        "Assessment Quality",
+        tabName = "assess_quality",
+        icon = icon("certificate")
       ),
       menuItem(
         "Documentation", 
@@ -358,12 +358,6 @@ dashboardPage(
                         dygraphOutput("on_track")
                       ),
                       tabPanel(
-                        "Table",
-                        dataTableOutput("num_dt"),
-                        br(),
-                        p("Note: Assessments with a negative duration time were removed.")
-                      ),
-                      tabPanel(
                         "What if...?",
                         p(
                           "Use the sliders below to understand the potential impact
@@ -410,62 +404,6 @@ dashboardPage(
                               a given region assumes an even and consistent effort for all 
                               organizations within it, and if this is not possible then 
                               completion may take longer."
-                            )
-                          ),
-                          tabPanel(
-                            "Table",
-                            br(),
-                            strong("Assessments per Interviewer"),
-                            p(
-                              "In this table, you can see the total number of SIS 
-                              assessments for each interviewer.  Only current interviewers 
-                              are displayed."
-                            ),
-                            p(
-                              "To define the interviewer for a given assessment, we use 
-                              the field recommended by AAIDD for inter-rater reliability 
-                              work.  This field may occasionally ascribe some assessments 
-                              incorrectly due to errors in data entry."
-                            ),
-                            p(
-                              "The average number of assessments per interviewer is",
-                              round(scrub_sis %>% filter(current_int == T) %>%
-                                      group_by(interviewer, agency) %>%
-                                      summarize(n = n()) %>% ungroup() %>% 
-                                      summarize(avg = mean(n, na.rm = T)), 
-                                    digits = 1), 
-                              ". Please remember that each interviewer has been completing 
-                              assessments for various lengths of time and each have a 
-                              different proportion of their position designated to 
-                              completing SIS assessments."
-                            ),
-                            p(
-                              "Clicking on the green 'plus' signs next to each row allows 
-                              you to see the values for columns that don't fit in the 
-                              view.  To change which columns are visible, click 'Show/Hide 
-                              Columns' in the upper right corner."
-                            ),
-                            strong("Duration"),
-                            p(
-                              "In order to estimate how many people hours need to be 
-                              dedicated to complete SIS assessments for eligible clients, 
-                              we need to get a sense of how long it takes to do a SIS 
-                              assessment."
-                            ),  
-                            p(
-                              "While there are some issues which still need to be resolved 
-                              with the data, assessments across the region have taken an 
-                              average of ",
-                              round(mean(scrub_sis$duration, na.rm = T), digits = 1), 
-                              " minutes (median = ", 
-                              round(median(scrub_sis$duration, na.rm = T), digits = 1), 
-                              "). Adding some standard assumptions for travel time and 
-                              documentation should allow for a basic estimate of the time 
-                              required to complete a single SIS assessment.  From there, 
-                              we can estimate the total number of hours which will need to 
-                              be devoted to assessment in the region and compare that to 
-                              the available hours of existing SIS interviewers in the 
-                              region during the time remaining."
                             )
                           ),
                           tabPanel(
@@ -524,7 +462,152 @@ dashboardPage(
                   )
                 )
               )
+            ),
+            tabPanel(
+              "By Interviewer",
+              fluidRow(
+                column(
+                  width = 12,
+                  radioButtons(
+                    "is_current",
+                    label = "Display:",
+                    choices = c("Current assessors", "All Assessors"),
+                    selected = "Current assessors",
+                    inline = T
+                  ),
+                  box(
+                    title = "Productivity Trends",
+                    status = "warning",
+                    collapsible = FALSE,
+                    width = 7,
+                    tabBox(
+                      width = NULL,
+                      tabPanel(
+                        "Line Chart",
+                        radioButtons(
+                          "metric",
+                          label = "Select a productivity metric:",
+                          choices = c("# of Assessments","% of Total","Average Minutes"),
+                          selected = "# of Assessments",
+                          inline = T
+                        ),
+                        plotlyOutput("int_prod")
+                      ),
+                      tabPanel(
+                        "About",
+                        h4("Line Chart..."),
+                        p(
+                          "The charts here show a variety of weekly productivity
+                          metrics for each SIS interviewer. Different display options
+                          include:",
+                          br(),
+                          strong("% of Total: "),
+                          "The percentage of total assessments per week that each
+                          interviewer comprises.",
+                          br(),
+                          strong("Average Hours: "),
+                          "The average number of hours spent completing an assessment
+                          for the given week.",
+                          br(),
+                          strong("# of Assessments: "),
+                          "The total number of assessments completed for the given week."
+                        ),
+                        br(),
+                        h4("Range Selector..."),
+                        p(
+                          "Use the the slider along the x-axis to created a customized
+                          view of the chart for a desired time period. The buttons
+                          in the top left corner of the chart can be used to quickly
+                          zoom into the predefined timeframes: ",
+                          br(),
+                          strong("2 mo: "), "the previous two months",
+                          br(),
+                          strong("6 mo: "), "the previous six months",
+                          br(),
+                          strong("1 yr: "), "the previous twelve months",
+                          br(),
+                          strong("YTD: "), "calendar year-to-date",
+                          br(),
+                          strong("All: "), "the entire time range"
+                        )
+                      )
+                    )
+                  ),
+                  box(
+                    title = "Assessment Summary",
+                    status = "warning",
+                    collapsible = FALSE,
+                    width = 5,
+                    tabBox(
+                      width = NULL,
+                      tabPanel(
+                        "Table",
+                        dataTableOutput("num_dt"),
+                        br(),
+                        p("Note: Assessments with a negative duration time were removed.")
+                      ),
+                      tabPanel(
+                        "About",
+                        br(),
+                        strong("Assessments per Interviewer"),
+                        p(
+                          "In this table, you can see the total number of SIS 
+                          assessments for each interviewer.  Only current interviewers 
+                          are displayed."
+                        ),
+                        p(
+                          "To define the interviewer for a given assessment, we use 
+                          the field recommended by AAIDD for inter-rater reliability 
+                          work.  This field may occasionally ascribe some assessments 
+                          incorrectly due to errors in data entry."
+                        ),
+                        p(
+                          "The average number of assessments per interviewer is",
+                          round(scrub_sis %>% filter(current_int == T) %>%
+                                  group_by(interviewer, agency) %>%
+                                  summarize(n = n()) %>% ungroup() %>% 
+                                  summarize(avg = mean(n, na.rm = T)), 
+                                digits = 1), 
+                          ". Please remember that each interviewer has been completing 
+                          assessments for various lengths of time and each have a 
+                          different proportion of their position designated to 
+                          completing SIS assessments."
+                        ),
+                        p(
+                          "Clicking on the green 'plus' signs next to each row allows 
+                          you to see the values for columns that don't fit in the 
+                          view.  To change which columns are visible, click 'Show/Hide 
+                          Columns' in the upper right corner."
+                        ),
+                        strong("Duration"),
+                        p(
+                          "In order to estimate how many people hours need to be 
+                          dedicated to complete SIS assessments for eligible clients, 
+                          we need to get a sense of how long it takes to do a SIS 
+                          assessment."
+                        ),  
+                        p(
+                          "While there are some issues which still need to be resolved 
+                          with the data, assessments across the region have taken an 
+                          average of ",
+                          round(mean(scrub_sis$duration, na.rm = T), digits = 1), 
+                          " minutes (median = ", 
+                          round(median(scrub_sis$duration, na.rm = T), digits = 1), 
+                          "). Adding some standard assumptions for travel time and 
+                          documentation should allow for a basic estimate of the time 
+                          required to complete a single SIS assessment.  From there, 
+                          we can estimate the total number of hours which will need to 
+                          be devoted to assessment in the region and compare that to 
+                          the available hours of existing SIS interviewers in the 
+                          region during the time remaining."
+                        )
+                      )
+                    )
+                  )
+                )
+              )
             )
+            
           )
         )
       ),
@@ -702,18 +785,30 @@ dashboardPage(
           column(
             width = 6,
             box(
-              title = "Types of Need (Section 2: Supports)", 
+              title = "Types of Need", 
               status = "warning",
               collapsible = TRUE,
               collapsed = F,
               width = NULL,
               selectInput(
-                "select_area_q2",
+                "select_area_q2_3",
                 label = "Select life area:",
-                choices = c("All", levels(as.factor(q2$section_desc)))
+                choices = c(
+                  "All", 
+                  unique(q1_3$section_desc[!q1_3$section %in% c("Q1A","Q1B")])
+                )
               ),
               tabBox(
                 width = NULL,
+                tabPanel(
+                  "Table",
+                  dataTableOutput("q2_3_dt")
+                ),
+                tabPanel(
+                  "Chart",
+                  uiOutput('q2_3domain'),
+                  parsetOutput("tos_q2_3")
+                ),
                 tabPanel(
                   "About",
                   tabBox(
@@ -731,7 +826,7 @@ dashboardPage(
                         ").  The data presented here allows you to start 
                         looking at the number of people who have similar support 
                         needs in any given life area."
-                        ),
+                      ),
                       p(
                         "You could use this to ask the following questions (",
                         em("and more"),"):",
@@ -741,7 +836,7 @@ dashboardPage(
                           tags$li("Which specific needs related to living at home have the most variation across people who were assessed?")
                         )
                       )
-                        ),
+                    ),
                     tabPanel(
                       "The Table",
                       p(
@@ -764,8 +859,8 @@ dashboardPage(
                         agencies (", em("Difference"), ") in order allow easy 
                         identification of areas where a given agency's scores 
                         are higher or lower than their peers."
-                        )
-                      ),
+                      )
+                    ),
                     tabPanel(
                       "The Chart", 
                       br(),
@@ -783,7 +878,7 @@ dashboardPage(
                         ), 
                         " and so on...?  If so, then this is the visualization for 
                         you."
-                        ), 
+                      ), 
                       p(
                         "With this chart you can ask multiple questions such as:",
                         br(),
@@ -841,206 +936,54 @@ dashboardPage(
                             person to engage in the activity in question."
                           )
                         )
-                    ),
-                    strong("Definitions"),
-                    p(
-                      "The chart uses short words and phrases for ease of use. 
-                      Here are the full definitions from the SIS tool itself ",
-                      a(
-                        href = "http://aaidd.org/docs/default-source/sis-docs/sisfrequencyandscoringclarifications.pdf?sfvrsn=2",
-                        "as defined by AAIDD"
-                      ),":",
-                      br(),
-                      em("Frequency:"),
-                      tags$ul(
-                        tags$li(
-                          "Hourly = hourly or more frequently" 
-                        ),
-                        tags$li(
-                          "Daily = at least once a day but not once an hour"
-                        ),
-                        tags$li(
-                          "Weekly = at least once a week, but not once a day"
-                        ),
-                        tags$li(
-                          "Monthly = at least once a month, but not once a week"
-                        ),
-                        tags$li(
-                          "None = none or less than monthly"
-                        )
                       ),
-                      br(),
-                      em("Daily Support Time (DST):"),
-                      tags$ul(
-                        tags$li(
-                          "Over 4 hrs = 4 hours or more"
+                      strong("Definitions"),
+                      p(
+                        "The chart uses short words and phrases for ease of use. 
+                      Here are the full definitions from the SIS tool itself ",
+                        a(
+                          href = "http://aaidd.org/docs/default-source/sis-docs/sisfrequencyandscoringclarifications.pdf?sfvrsn=2",
+                          "as defined by AAIDD"
+                        ),":",
+                        br(),
+                        em("Frequency:"),
+                        tags$ul(
+                          tags$li(
+                            "Hourly = hourly or more frequently" 
+                          ),
+                          tags$li(
+                            "Daily = at least once a day but not once an hour"
+                          ),
+                          tags$li(
+                            "Weekly = at least once a week, but not once a day"
+                          ),
+                          tags$li(
+                            "Monthly = at least once a month, but not once a week"
+                          ),
+                          tags$li(
+                            "None = none or less than monthly"
+                          )
                         ),
-                        tags$li(
-                          "2-4 hrs = 2 hours to less than 4 hours"
-                        ),
-                        tags$li(
-                          "Under 2 hrs = 30 minutes to less than 2 hours"
-                        ),
-                        tags$li(
-                          "Under 30 min = less than 30 minutes"
-                        ),
-                        tags$li(
-                          "None = None"
+                        br(),
+                        em("Daily Support Time (DST):"),
+                        tags$ul(
+                          tags$li(
+                            "Over 4 hrs = 4 hours or more"
+                          ),
+                          tags$li(
+                            "2-4 hrs = 2 hours to less than 4 hours"
+                          ),
+                          tags$li(
+                            "Under 2 hrs = 30 minutes to less than 2 hours"
+                          ),
+                          tags$li(
+                            "Under 30 min = less than 30 minutes"
+                          ),
+                          tags$li(
+                            "None = None"
+                          )
                         )
                       )
-                    )
-                  )
-                )
-                ),
-                tabPanel(
-                  "Table",
-                  dataTableOutput("q2_dt")
-                ),
-                tabPanel(
-                  "Chart",
-                  uiOutput('q2domain'),
-                  parsetOutput("tos_q2")
-                )
-              )
-            ),
-            box(
-              title = "Types of Need (Section 3: Protection)", 
-              status = "warning",
-              collapsible = TRUE, 
-              collapsed = TRUE,
-              width = NULL,
-              tabBox(
-                width = NULL,
-                tabPanel(
-                  "Summary",
-                  dataTableOutput("q3_dt")
-                ),
-                tabPanel(
-                  "Chart",
-                  uiOutput('q3domain'),
-                  parsetOutput("tos_q3")
-                ),
-                tabPanel(
-                  "About",
-                  tabBox(
-                    width = NULL,
-                    tabPanel(
-                      "The Table",
-                      p(
-                        "The table shows the average (", em("All"), 
-                        ") and standard deviation (", em("StDev"),
-                        ") of raw scores for each item from section 3 of the SIS,
-                        which addresses needs related to protection and advocacy.  
-                        The standard deviation can be used 
-                        to look at items whose total score has the greatest 
-                        amount of variation across assessments.  You can then 
-                        explore potential causes of variation using the 
-                        visualization in the ", em("Chart"), " tab and selecting 
-                        the item you want to investigate."
-                      ),
-                      p(
-                        "When a specific agency is selected, the table will 
-                        display the average (", em("All.Others"),
-                        ") of scores for all agencies other than the one 
-                        selected and the difference between the selected 
-                        agency's average score and the average of other 
-                        agencies (", em("Difference"), ") in order allow easy 
-                        identification of areas where a given agency's scores 
-                        are higher or lower than their peers."
-                        )
-                      ),
-                    tabPanel(
-                      "The Chart", 
-                      br(),
-                      strong("This wobbly-looking chart..."),
-                      p(
-                        "Take a deep breath.  Don't run away screaming from the 
-                        'dancing octopus' chart that you see here. Let's take a 
-                        moment to understand how it might help us out."
-                      ),
-                      p(
-                        "Have you ever asked a question sounding like: ",
-                        em(
-                          "What percent of people are ____? What percent of those 
-                          people are _____?"
-                        ), 
-                        " and so on...?  If so, then this is the visualization for 
-                        you."
-                        ), 
-                      p(
-                        "With this chart, you can ask multiple questions like:",
-                        br(),
-                        em(
-                          "In the area of money management, how many people were 
-                          assessed as needing prompting on a daily basis?  How 
-                          many hours per day were they identified as needing it?"
-                        ),
-                        br(),
-                        em(
-                          "In the area of protection from exploitation, how many 
-                          people were assessed asa needing full physical support 
-                          on a monthly basis? How many minutes were they 
-                          identified as needing it?"
-                        )
-                      ),
-                      p(
-                        "When you click on", em("alpha"), " or ", em("size"), 
-                        ", the chart sorts the variable alphabetically or by size.  
-                        You can sort either of these from low-to-high (<<) or 
-                        high-to-low (>>)."
-                      ),
-                      p(
-                        "The different colors on the chart correspond to the 
-                        variable at the top of the chart, so if 'Type of Support' is 
-                        on the top, there will be one color from each type of 
-                        support weaving down through the other variables."
-                      )
-                    ),
-                    tabPanel(
-                      "The Data", 
-                      br(),
-                      strong("Type of Support"),
-                      p(
-                        "When completing Section 3, the support needs for each 
-                        activity related to protection and advocacy are examined 
-                        with regard to three measures of support need:",
-                        br(),
-                        em("Frequency:"), 
-                        "How often extraordinary support (i.e., support beyond that 
-                        which is typically needed by most individuals without 
-                        disabilities) is required for each targeted activity.",
-                        br(),
-                        em("Daily Support Time:"), 
-                        "Amount of time that is typically devoted to support 
-                        provision on those days when the support is provided.",
-                        br(),
-                        em("Type of Support:"), 
-                        "The nature of support that would be needed by a person to 
-                        engage in the activity in question."
-                    ),
-                    strong("Definitions"),
-                    p(
-                      "The chart uses short words and phrases for ease of use. 
-                      Here are the full definitions from the SIS tool itself ",
-                      a(
-                        href = "http://aaidd.org/docs/default-source/sis-docs/sisfrequencyandscoringclarifications.pdf?sfvrsn=2",
-                        "as defined by AAIDD"
-                      ),":",
-                      br(),
-                      em("Frequency:"),
-                      "Hourly = hourly or more frequently; 
-                      Daily = at least once a day but not once an hour; 
-                      Weekly = at least once a week, but not once a day; 
-                      Monthly = at least once a month, but not once a week; 
-                      None = none or less than monthly",
-                      br(),
-                      em("Daily Support Time (DST):"),
-                      "Over 4 hrs = 4 hours or more; 
-                      2-4 hrs = 2 hours to less than 4 hours; 
-                      Under 2 hrs = 30 minutes to less than 2 hours; 
-                      Under 30 min = less than 30 minutes; 
-                      None = None"
-                    )
                     )
                   )
                 )
@@ -1399,147 +1342,239 @@ dashboardPage(
         )
       ),
       tabItem(
-        tabName = "inter_rater",
+        tabName = "relate",
         fluidRow(
           column(
-            width = 12,
+            width = 3,
+            inputPanel(
+              radioButtons(
+                "radio_relate_group",
+                label = "Explore the relationships between...",
+                choices = c("Grouped SIS subscales","Specific SIS items","Predefined analyses")
+              ),
+              uiOutput("filt_relate")
+            ),
             box(
-              title = "Productivity Trends",
-              status = "warning",
+              title = p("About: ",em("Predefined analyses")),
               collapsible = TRUE,
-              width = 6,
+              collapsed = TRUE,
+              width = NULL,
               tabBox(
                 width = NULL,
                 tabPanel(
-                  "Productivity Trends",
-                  radioButtons(
-                    "metric",
-                    label = "Select a productivity metric:",
-                    choices = c("# of Assessments","% of Total","Average Hours"),
-                    selected = "# of Assessments",
-                    inline = T
+                  "Decision Making",
+                  p(
+                    "The predefined analysis related to decision making is different than the SIS
+                    item related to decision making in that it is a collection of items that identify
+                    skills necessary to make and implement decisions in one's life. The items identified
+                    were categorized as",em("Primary"),", ",em("Secondary"),", ", "and", em("Other")," in 
+                    their relation to decision making. Details of the items included in each area are outlined below."
                   ),
-                  plotlyOutput("int_prod"),
-                  radioButtons(
-                    "current_prod",
-                    label = "Display:",
-                    choices = c("Current assessors", "All Assessors"),
-                    selected = "Current assessors",
-                    inline = T
+                  p(
+                    em("Primary Decision Making Score: "),
+                    br(),
+                    "The primary decision making score included in the visualizations is an aggregate
+                    score of the four primary items. Please note, that the strong correlation between 
+                    this aggregate score and the individual items it is comprised of is not suprising 
+                    given one is a component of the other."
                   )
                 ),
-                tabPanel(
-                  "About",
-                  h4("Productivity Trends..."),
-                  p(
-                    "The charts here show a variety of weekly productivity 
-                    metrics for each SIS interviewer. Different display options 
-                    include:",
+                tabBox(
+                  width = NULL,
+                  tabPanel(
+                    "Primary",
+                    tags$li("Self-advocacy"),
+                    tags$li("Decision making"),
+                    tags$li("Learning problem-solving"),
+                    tags$li("Learning self-determination"),
                     br(),
-                    strong("% of Total: "),
-                    "The percentage of total assessments per week that each 
-                    interviewer comprises.",
+                    p("In other words, in order to make decisions, one needs to be able to: "),
+                    tags$em("a) Make choices and decisions"),
                     br(),
-                    strong("Average Hours: "),
-                    "The average number of hours spent completing an assessment 
-                    for the given week.",
+                    tags$em("b) Advocate effectively for one's decisions"),
                     br(),
-                    strong("# of Assessments: "),
-                    "The total number of assessments completed for the given week."
+                    tags$em("c) Learn strategies to apply to real-world problems"),
+                    br(),
+                    tags$em("d) Learn self-determination skills"),
+                    br(),
+                    br(),
+                    p("Collectively, these items are indicative of decision making needs,
+                      and therefore an absence of identified need for support in these
+                      areas would indicate that an individual is able to independently
+                      make decisions.")
                   ),
-                  br(),
-                  h4("Range Selector..."),
-                  p(
-                    "Use the the slider along the x-axis to created a customized
-                    view of the chart for a desired time period. The buttons 
-                    in the top left corner of the chart can be used to quickly
-                    zoom into the predefined timeframes: ",
-                    br(),
-                    strong("2 mo: "), "the previous two months",
-                    br(),
-                    strong("6 mo: "), "the previous six months",
-                    br(),
-                    strong("1 yr: "), "the previous twelve months",
-                    br(),
-                    strong("YTD: "), "calendar year-to-date",
-                    br(),
-                    strong("All: "), "the entire time range"
+                  tabPanel(
+                    "Secondary",
+                    p(
+                      "Several additional items, also related to decision making, were identified.
+                      The hypothesis is that as support needs for decision making change, the needs
+                      in these secondary dimensions would also change, either with a positive (+) or
+                      negative (-) correlation."
+                    ),
+                    tags$li("Assault"),
+                    tags$li("Property destruction"),
+                    tags$li("Self-injury"),
+                    tags$li("Preferred Activities"),
+                    tags$li("Visit Friends/Family"),
+                    tags$li("Recreation"),
+                    tags$li("Educational decisions"),
+                    tags$li("Communicating needs"),
+                    tags$li("Obtaining health care"),
+                    tags$li("Civic responsibility"),
+                    tags$li("Advocating for others")
+                  ),
+                  tabPanel(
+                    "Other",
+                    p(
+                      "Additional items hypothesized to be impacted by one's ability 
+                      to make decisions are listed below."
+                    ),
+                    tags$li("Learning health skills"),
+                    tags$li("Learning self-management"),
+                    tags$li("Social skills"),
+                    tags$li("Recreation/Leisure"),
+                    tags$li("Socializing outside"),
+                    tags$li("Friendship"),
+                    tags$li("Intimate relationships"),
+                    tags$li("Socializing at home"),
+                    tags$li("Volunteering"),
+                    tags$li("Legal services"),
+                    tags$li("Financial management")
                   )
+                )
+              )
+            )
+          ),
+          column(
+            width = 9,
+            box(
+              title = "All domains of life (Summary)",
+              status = "warning",
+              collapsible = T,
+              collapsed = F,
+              width = NULL,
+              p(
+                "In the correlation matrix below, light colors indicate weaker
+                relationships between specific life areas, while darker colors
+                indicate stronger relationships, either positive (",em("blue"),
+                ") or negative (",em("red"),")."
+              ),
+              plotlyOutput("cor_matrix"),
+              br(),
+              box(
+                title = "What is a correlation matrix?",
+                collapsible = T,
+                collapsed = T,
+                width = NULL,
+                p(
+                  "The correlation matrix above shows the correlation coefficients
+                  between each pair of variables in the dataset. Each variable in
+                  the matrix is correlated with each of the other variables, which
+                  allows you to see which pairs have the highest correlation."
+                ),
+                p(
+                  "The correlation coefficient can be defined as a measure of the
+                  strength and direction of a linear relationship between two variables.
+                  The value is always between +1 and –1 and can be interpreted with the
+                  following guidelines:"
+                ),
+                tags$ul(
+                  tags$li(strong("Exactly –1 :"),"A perfect, negative linear relationship"),
+                  tags$li(strong("–0.70 :"), "A strong, negative linear relationship"),
+                  tags$li(strong("–0.50 :"), "A moderate, negative relationship"),
+                  tags$li(strong("–0.30 :"), "A weak, negative linear relationship"),
+                  tags$li(strong("0 :"), "No linear relationship"),
+                  tags$li(strong("+0.30 :"),"A weak, positive linear relationship"),
+                  tags$li(strong("+0.50 :"),"A moderate, positive linear relationship"),
+                  tags$li(strong("+0.70 :"),"A strong, positive linear relationship"),
+                  tags$li(strong("Exactly 1 :"),"A perfect, positive linear relationship")
+                ),
+                p(
+                  "The diagonal of the table is always a set of ones, because the
+                  correlation between a variable and itself always equals 1. Note
+                  that the upper triangle of the matrix is left blank, because
+                  these values would be a repeat of the lower triangle."
+                ),
+                p(
+                  "It is important to note that correlation does not imply causation. 
+                  In other words, an association between two items does not
+                  suggest that one causes the other."
                 )
               )
             ),
             box(
-              title = "Subscale Comparison",
+              title = "All domains of life (Detail)",
               status = "warning",
-              collapsible = TRUE,
-              width = 6,
-              tabBox(
-                width = NULL,
-                tabPanel(
-                  "Subscale Comparison",
-                  uiOutput('box_opts'),
-                  plotlyOutput("box_int")
+              collapsible = T,
+              collapsed = T,
+              width = NULL,
+              p(
+                "The parallel coordinates plot below will allow you to view the
+                scores of every single assessment across the selected variables."
+              ),
+              parcoordsOutput("par_coords"),
+              uiOutput("par_coords_ui")
+            ),
+            box(
+              title = "Specific domains of life (Detail)",
+              status = "warning",
+              collapsible = T,
+              collapsed = T,
+              width = NULL,
+              p(
+                "The plot below shows the relationship between the x and y variables
+                selected below."
+              ),
+              plotlyOutput("scatter_vars"),
+              inputPanel(
+                radioButtons(
+                  "scatter_viz_type",
+                  label = "Visualize using:",
+                  choices = c("Scatterplot","Contour plot")
                 ),
-                tabPanel(
-                  "About",
-                  h4("Subscale Comparison..."),
-                  p(
-                    "The boxplots here show a summary of scores. When viewing all regions,
-                    the boxplots display each subscale score in aggregate. When a single
-                    region is select, the boxplots show a summary of scores for all current
-                    interviewers for the selected subscale.  A boxplot shows key information 
-                    about the distribution of a measure, i.e. how it is spread out.  It is
-                    made up of the following pieces:",
-                    br(),
-                    strong("Median: "),
-                    "The mid-point of the data is shown by the line that divides
-                    the box into two parts. Half the scores are greater than or
-                    equal to this value, half are less.",
-                    br(),
-                    strong("Interquartile range: "),
-                    "The middle 'box' represents the middle 50% of scores for
-                    the group. The range of scores from lower to upper quartile
-                    is referred to as the inter-quartile range.",
-                    br(),
-                    strong("Upper quartile: "),
-                    "75% of the scores fall below the upper quartile. This is
-                    the top of the box (or the right side if the boxplot is
-                    displayed horizontally",
-                    br(),
-                    strong("Lower quartile: "),
-                    "25% of scores fall below the lower quartile. This is the
-                    bottom (left side) of the box.",
-                    br(),
-                    strong("Whiskers: "),
-                    "The whiskers stretch to the greatest (top) and least
-                    (bottom) values in the data, except for outliers.",
-                    br(),
-                    strong("Outliers: "),
-                    "Outliers are defined as more than 1.5x the upper value or
-                    less than 1.5x the lower value shown by the whiskers.",
-                    br(),
-                    "For more information, here's a ",
-                    a(href = "http://flowingdata.com/2008/02/15/how-to-read-and-use-a-box-and-whisker-plot/",
-                      "diagram from FlowingData"),
-                    "showing the parts of a boxplot."
-                    ),
-                  br(),
-                  h4("Interpreting them..."),
-                  p(
-                    "Box plots that are comparatively short show that an
-                    interviewer's scores fall within a restricted range.
-                    Comparatively tall box plots show a broader range of scores.
-                    If one box plot is much higher or lower than all the others,
-                    this may suggest either a difference between individuals
-                    being assessed or some variation in the way that the
-                    assessor is scoring individuals."
-                  ),
-                  p(
-                    "Please recall that a broader range of scores by one
-                    interviewer could be due to characteristics of the group
-                    they assessed and is not automatically a concern with the
-                    validity of scoring."
-                  )
+                uiOutput("scatter_vars_x"),
+                uiOutput("scatter_vars_y")
+              ),
+              box(
+                title = "What is a scatterplot?",
+                collapsible = T,
+                collapsed = T,
+                width = NULL,
+                p(
+                  "A scatterplot is a set of points plotted on horizontal and
+                  vertical axes. It is one of the best ways to visualize the
+                  relationship between two variables.  Lower values fall lower 
+                  on the plot (y-axis) or farther to the left (x-axis).  Higher 
+                  values fall higher on the plot (y-axis) or farther to the 
+                  right (x-axis)."
+                ),
+                p(
+                  "Due to the discrete nature of the item-level scores the x and y
+                  coordinates can only represent a limited number of values. As such,
+                  it is important to note that multiple assessments may occupy a 
+                  single (x,y) coordinate.  Using a different visualization method (",
+                  em("like a contour plot"),") can help to see how many 
+                  assessments occupy a particular position."
+                )
+              ),
+              box(
+                title = "What is a contour plot?",
+                collapsible = T,
+                collapsed = T,
+                width = NULL,
+                p(
+                  "Contour plots are a visualization technique used to portray
+                  three different variables within a two-dimensional format. That is,
+                  for a given value of z (i.e. number of assessments) lines are drawn
+                  to connect the x and y coordinates where that z value occurs. Lighter
+                  colored areas represent a larger number of assessments, while darker areas
+                  signify x and y values that represent fewer assessments."
+                ),
+                p(
+                  "You can think about this plot like the map of an island, 
+                  where the combinations of variables shared by fewer assessments 
+                  show up as the ocean and the combinations with more assessments 
+                  appear as the center of the island(s)."
                 )
               )
             )
@@ -1555,7 +1590,7 @@ dashboardPage(
               title = "Individual Recommendations",
               status = "warning",
               collapsible = TRUE, 
-              collapsed = F,
+              collapsed = TRUE,
               width = NULL,
               p(
                 "You can press the ", em("Select new"), 
@@ -1816,6 +1851,11 @@ dashboardPage(
                     em("PC/CLS"), " tab and are repeated here."
                   )
                 ),
+                # tabPanel(
+                #   "Decision-Making",
+                #   dataTableOutput("ipos_dcsn"),
+                #   dataTableOutput("ipos_dcsnPlot")
+                # ),
                 tabPanel(
                   "Recommendations",
                   p(
@@ -1869,8 +1909,10 @@ dashboardPage(
                   selectInput(
                     "need_import_q2_measure",
                     label = "Show the:",
-                    choices = c("Number of people with need", 
-                                "Average level of need"), 
+                    choices = c(
+                      "Number of people with need", 
+                      "Average level of need"
+                    ), 
                     selected = "Number of people with need"
                   ),
                   plotlyOutput("need_import_q2")
@@ -2068,12 +2110,12 @@ dashboardPage(
         )
       ),
       tabItem(
-        tabName = "data_quality",
+        tabName = "assess_quality",
         fluidRow(
           column(
             width = 12,
             box(
-              title = "Data Quality Issues",
+              title = "Assessment Quality",
               status = "warning",
               collapsible = TRUE,
               collapsed = FALSE,
@@ -2081,84 +2123,273 @@ dashboardPage(
               tabBox(
                 width = NULL,
                 tabPanel(
-                  "Missing or Incorrect Entries",
-                  radioButtons(
-                    "current",
-                    label = "Display:",
-                    choices = c("Current assessors", "All Assessors"),
-                    selected = "Current assessors",
-                    inline = T
-                  ),
-                  dataTableOutput("dt_datqual")
+                  "Quality Overview",
+                    tabBox(
+                      width = NULL,
+                      tabPanel(
+                        title = "Assessment Quality Indicators",
+                        dataTableOutput("dt_qual_all")
+                      ),
+                      tabPanel(
+                        title = "Missing or Incorrect Entries",
+                        dataTableOutput("dt_miss_all")
+                      ),
+                      tabPanel(
+                        title = "Correlation of Related Items",
+                        dataTableOutput("dt_cor_all")
+                      ),
+                      tabPanel(
+                        title = "Subscale Comparison",
+                        uiOutput('box_opts'),
+                        plotlyOutput("box_int")
+                      )
+                    )
+                ),
+                tabPanel(
+                  "By Interviewer",
+                  tabBox(
+                    width = NULL,
+                    tabPanel(
+                    "Assessment Quality Indicators",
+                    dataTableOutput("dt_datqual")
+                    ),
+                    tabPanel(
+                      "Missing or Incorrect Entries",
+                      dataTableOutput("dt_miss")
+                    ),
+                    tabPanel(
+                      "Correlation of Related Items",
+                      dataTableOutput("dt_datqualcor")
+                    )
+                  )
                 ),
                 tabPanel(
                   "About",
-                  p(
-                    strong("Unmatched Mcaid IDs"), "counts the number of
-                    instances in which the Medicaid ID from the SIS data does
-                    not match with the attribution file."
-                  ),
-                  p(
-                    strong("Missing Start Time"), "and", strong("Missing End Time"),
-                    "count the number of times that no start/end time was entered
-                    for the assessment, thereby making it impossible to
-                    calculate the duration of the assessment."
-                  ),
-                  p(
-                    strong("Missing Reason"),
-                    "counts the number of instances in which no reason was given
-                    for the completion of the SIS assessment.  Available reasons
-                    include:",
-                    em(
-                      "Change in situation, First SIS, or Regularly scheduled 
-                      assessment"
+                  tabBox(
+                    width = NULL,
+                    tabPanel(
+                      "Missing or Incorrect Entries",
+                      p(
+                        strong("Number of Assessments"), 
+                        "counts the number of assessments completed by the 
+                        interviewer.  Note that, because this count includes 
+                        duplicates for individuals with more than one assessment, 
+                        the number will not match the total number of assessments 
+                        used for the completion rate calculation."
+                      ),
+                      p(
+                        strong("Missing Start Time"), "and", strong("Missing End Time"),
+                        "count the number of times that no start/end time was entered
+                        for the assessment, thereby making it impossible to
+                        calculate the duration of the assessment."
+                      ),
+                      p(
+                        strong("Missing Reason"),
+                        "counts the number of instances in which no reason was given
+                        for the completion of the SIS assessment.  Available reasons
+                        include:",
+                        em(
+                          "Change in situation, First SIS, or Regularly scheduled 
+                          assessment"
+                        )
+                      ),
+                      # p(
+                      #   strong("No Intrvw Setting"),
+                      #   "counts the number of instances in which the interview
+                      #   setting was not specified for the SIS assessment."
+                      # ),
+                      # p(
+                      #   strong("Missing Supports Info"),
+                      #   "counts the number of instances in which information was
+                      #   missing from the initial entry field for ",
+                      #   em("Supports Relation Type."), " While multiple supports
+                      #   can be recorded on the SIS assessment, there is no way of
+                      #   knowing the actual number of supports that the individual
+                      #   was receiving using the SIS data alone.  This count assumes
+                      #   that individuals had at least one support at the time of
+                      #   the interview."
+                      # ),
+                      # p(
+                      #   strong("Missing Respondents"),
+                      #   "counts the number of instances in which information was
+                      #   missing from the initial entry field for ",
+                      #   em("Respondent Relation Type."), " While multiple respondents
+                      #   can be recorded on the SIS assessment, there is no way of
+                      #   knowing the actual number of respondents that were present
+                      #   using the SIS data alone.  This count assumes that
+                      #   individuals had at least one respondent present for the
+                      #   interview."
+                      # ),
+                      p(
+                        strong("State other than MI"),
+                        "counts the number of times that a state other than Michigan
+                        was identified as the living address of the person being
+                        assessed.  This is one of a number of issues with data entry
+                        that may make it difficult to correctly map proximity to
+                        nearby resources."
+                      ),
+                      p(
+                        strong("No Important To"),
+                        "is the percentage of assessments where no items were marked
+                        as ", em("important to"), " the person being assessed."
+                      ),
+                      p(
+                        strong("No Important For"),
+                        "is the percentage of assessments where no items were marked
+                        as ", em("important for"), " the person being assessed."
+                      )
+                    ),
+                    tabPanel(
+                      "Correlation of Related Items",
+                      p(
+                        "The table here shows the correlation between related assessment
+                        items. The correlation coefficient can be defined as a measure of the
+                        strength and direction of a linear relationship between two variables.
+                        The value is always between +1 and –1 and can be interpreted with the
+                        following guidelines:",
+                        br(),
+                        br(),
+                        strong("Exactly –1 :"),
+                        "A perfect, negative linear relationship",
+                        br(),
+                        strong("–0.70"),
+                        "A strong, negative linear relationship",
+                        br(),
+                        strong("–0.50 :"),
+                        "A moderate, negative relationship",
+                        br(),
+                        strong("–0.30 :"),
+                        "A weak, negative linear relationship",
+                        br(),
+                        strong("0 :"),
+                        "No linear relationship",
+                        br(),
+                        strong("+0.30 :"),
+                        "A weak, positive linear relationship",
+                        br(),
+                        strong("+0.50 :"),
+                        "A moderate, positive linear relationship",
+                        br(),
+                        strong("+0.70 :"),
+                        "A strong, positive linear relationship",
+                        br(),
+                        strong("Exactly 1 :"),
+                        "A perfect, positive linear relationship"
+                      ),
+                      p(
+                      strong("% Strong Correlation"),
+                      "is the percentage of related items with a correlation
+                      coefficient greater than 0.7 or less than -0.7, suggesting
+                      a strong correlation between the two items."
+                      ),
+                      p("Note: The 'By Interviewer' correlations only include assessors
+                        who completed more than one assessment.")
+                      # p("The image below illustrates these different relationships."),
+                      # imageOutput("../data/scatter.png")
+                    ),
+                    tabPanel(
+                      "Assessment Quality Indicators",
+                      p(
+                        strong("Median Days Between Assessments"),
+                        "indicates the median number of days between conducting
+                        assessments."
+                      ),
+                      p(
+                        strong("Median Duration"),
+                        "indicates the median duration, in minutes, of 
+                        completed assessments."
+                      ),
+                      p(
+                        strong("No Important To"),
+                        "indicates the percentage of assessments where no items were marked
+                        as ", em("important to"), " the person being assessed."
+                      ),
+                      p(
+                        strong("No Important For"),
+                        "indicates the percentage of assessments where no items were marked
+                        as ", em("important for"), " the person being assessed."
+                      ),
+                      p(
+                        strong("Median # of Attendees"),
+                        "indicates the median number of individuals that attended assessments."
+                      ),
+                      p(
+                        strong("% Attended by Individual"),
+                        "indicates the percentage of assessments attended by the individual.
+                        This includes individuals attending all or part of the assessment."
+                      )
+                    ),
+                    tabPanel(
+                      "Subscale Comparison",
+                      p(
+                        "The boxplots here show a summary of scores. When viewing all regions,
+                        the boxplots display each subscale score in aggregate. When a single
+                        region is selected, the boxplots show a summary of scores for all current
+                        interviewers for the selected subscale.  A boxplot shows key information 
+                        about the distribution of a measure, i.e. how it is spread out.  It is
+                        made up of the following pieces:",
+                        br(),
+                        br(),
+                        strong("Median: "),
+                        "The mid-point of the data is shown by the line that divides
+                        the box into two parts. Half the scores are greater than or
+                        equal to this value, half are less.",
+                        br(),
+                        strong("Interquartile range: "),
+                        "The middle 'box' represents the middle 50% of scores for
+                        the group. The range of scores from lower to upper quartile
+                        is referred to as the inter-quartile range.",
+                        br(),
+                        strong("Upper quartile: "),
+                        "75% of the scores fall below the upper quartile. This is
+                        the top of the box (or the right side if the boxplot is
+                        displayed horizontally",
+                        br(),
+                        strong("Lower quartile: "),
+                        "25% of scores fall below the lower quartile. This is the
+                        bottom (left side) of the box.",
+                        br(),
+                        strong("Whiskers: "),
+                        "The whiskers stretch to the greatest (top) and least
+                        (bottom) values in the data, except for outliers.",
+                        br(),
+                        strong("Outliers: "),
+                        "Outliers are defined as more than 1.5x the upper value or
+                        less than 1.5x the lower value shown by the whiskers.",
+                        br(),
+                        "For more information, here's a ",
+                        a(href = "http://flowingdata.com/2008/02/15/how-to-read-and-use-a-box-and-whisker-plot/",
+                          "diagram from FlowingData"),
+                        "showing the parts of a boxplot."
+                        ),
+                      br(),
+                      h4("Interpreting them..."),
+                      p(
+                        "Box plots that are comparatively short show that an
+                        interviewer's scores fall within a restricted range.
+                        Comparatively tall box plots show a broader range of scores.
+                        If one box plot is much higher or lower than all the others,
+                        this may suggest either a difference between individuals
+                        being assessed or some variation in the way that the
+                        assessor is scoring individuals."
+                      ),
+                      p(
+                        "Please recall that a broader range of scores by one
+                        interviewer could be due to characteristics of the group
+                        they assessed and is not automatically a concern with the
+                        validity of scoring."
+                      )
                     )
-                  ),
-                  p(
-                    strong("No Intrvw Setting"),
-                    "counts the number of instances in which the interview
-                    setting was not specified for the SIS assessment."
-                  ),
-                  p(
-                    strong("Missing Supports Info"),
-                    "counts the number of instances in which information was
-                    missing from the initial entry field for ",
-                    em("Supports Relation Type."), " While multiple supports
-                    can be recorded on the SIS assessment, there is no way of
-                    knowing the actual number of supports that the individual
-                    was receiving using the SIS data alone.  This count assumes
-                    that individuals had at least one support at the time of
-                    the interview."
-                  ),
-                  p(
-                    strong("Missing Respondents"),
-                    "counts the number of instances in which information was
-                    missing from the initial entry field for ",
-                    em("Respondent Relation Type."), " While multiple respondents
-                    can be recorded on the SIS assessment, there is no way of
-                    knowing the actual number of respondents that were present
-                    using the SIS data alone.  This count assumes that
-                    individuals had at least one respondent present for the
-                    interview."
-                  ),
-                  p(
-                    strong("State other than MI"),
-                    "counts the number of times that a state other than Michigan
-                    was identified as the living address of the person being
-                    assessed.  This is one of a number of issues with data entry
-                    that may make it difficult to correctly map proximity to
-                    nearby resources."
-                  ),
-                  p(
-                    strong("No Important To"),
-                    "counts the number of assessments where no items were marked
-                    as ", em("important to"), " the person being assessed."
-                  ),
-                  p(
-                    strong("No Important For"),
-                    "counts the number of assessments where no items were marked
-                    as ", em("important for"), " the person being assessed."
                   )
+                )
+              ),
+              inputPanel(
+                radioButtons(
+                  "current",
+                  label = "Display:",
+                  choices = c("Current assessors", "All Assessors"),
+                  selected = "Current assessors",
+                  inline = F
                 )
               )
             )
