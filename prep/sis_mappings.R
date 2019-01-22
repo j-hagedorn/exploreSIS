@@ -256,6 +256,7 @@ needs <-
                              Q1B6_ = "Emotional Wellbeing", 
                              Q1B7_ = "Emotional Wellbeing", 
                              Q1B8_ = "Emotional Wellbeing",
+                             Q1B9_ = "Emotional Wellbeing",
                              Q1B10_ = "Emotional Wellbeing",
                              Q1B11_ = "Emotional Wellbeing",
                              Q1B12_ = "Emotional Wellbeing",
@@ -331,7 +332,7 @@ needs <-
   # Flag necessary services (i.e. high risk)
   mutate(need_svc = item %in% c("Q2A1_","Q2A2_","Q2A3_","Q2A4_",
                                 "Q2A5_","Q2A6_","Q2A7_","Q2A8_",
-                                "Q2B1_","Q2B4_","Q2B6_","Q2B7_",
+                                "Q2B1_","Q2B3_","Q2B4_","Q2B5_","Q2B6_","Q2B7_",
                                 "Q2E1_","Q2E2_","Q2E3_","Q2E4_","Q2E5_",
                                 "Q1A1_","Q1A2_","Q1A3_","Q1A4_","Q1A5_", 
                                 "Q1A6_","Q1A7_","Q1A8_","Q1A9_","Q1A10_", 
